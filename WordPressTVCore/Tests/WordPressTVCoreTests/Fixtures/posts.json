@@ -1,0 +1,81 @@
+{
+  "found": 5,
+  "posts": [
+    {
+      "ID": 140420,
+      "title": "WordCamp Europe 2026 &#8211; Opening &amp; Keynote",
+      "excerpt": "<p>How to generate thumbnails for online course lessons on Learn WordPress&hellip;</p>\n",
+      "content": "<p>Recorded session from WCEU 2026.</p>",
+      "status": "publish",
+      "date": "2026-06-12T08:50:08-07:00",
+      "attachments": {
+        "140421": {
+          "videopress_guid": "ioh6M32j",
+          "length": 1910,
+          "mime_type": "video/mp4",
+          "thumbnails": {
+            "fmt_hd": "https://videos.files.wordpress.com/ioh6M32j/video_hd.original.jpg",
+            "fmt_dvd": "https://videos.files.wordpress.com/ioh6M32j/video_dvd.original.jpg",
+            "fmt_std": "https://videos.files.wordpress.com/ioh6M32j/video_std.original.jpg"
+          }
+        }
+      }
+    },
+    {
+      "ID": 140380,
+      "title": "Contributor Day Highlights",
+      "excerpt": "<p>A look back at contributor day.</p>",
+      "content": "<iframe title='VideoPress Video Player' src='https://video.wordpress.com/embed/Znvmzhpy?hd=1&amp;autoPlay=0' frameborder='0' allowfullscreen></iframe>",
+      "status": "publish",
+      "date": "2026-06-11T10:00:00-07:00",
+      "attachments": {
+        "140381": {
+          "videopress_guid": "",
+          "mime_type": "image/jpeg",
+          "thumbnails": {
+            "fmt_std": "https://videos.files.wordpress.com/Znvmzhpy/video_std.original.jpg"
+          }
+        }
+      }
+    },
+    {
+      "ID": 140300,
+      "title": "Text-only announcement (no video)",
+      "excerpt": "<p>This post has no playable video.</p>",
+      "content": "<p>Just an article, nothing to play here.</p>",
+      "status": "publish",
+      "date": "2026-06-10T09:00:00-07:00",
+      "attachments": {}
+    },
+    {
+      "ID": 140250,
+      "title": "Draft preview &#8211; not published",
+      "excerpt": "<p>Should never appear in Latest.</p>",
+      "content": "<iframe src='https://video.wordpress.com/embed/DraftGuid1'></iframe>",
+      "status": "draft",
+      "date": "2026-06-09T09:00:00-07:00",
+      "attachments": {
+        "140251": { "videopress_guid": "DraftGuid1", "length": 100 }
+      }
+    },
+    {
+      "ID": 140100,
+      "title": "State of the Word 2025",
+      "excerpt": "<p>The annual address.</p>",
+      "content": "<p>Recorded session.</p>",
+      "status": "publish",
+      "date": "2026-06-08T09:00:00-07:00",
+      "attachments": {
+        "140101": {
+          "videopress_guid": "S1k6pDmQ",
+          "length": 4258,
+          "mime_type": "video/quicktime",
+          "thumbnails": {
+            "fmt_dvd": "https://videos.files.wordpress.com/S1k6pDmQ/video_dvd.original.jpg",
+            "fmt_std": "https://videos.files.wordpress.com/S1k6pDmQ/video_std.original.jpg"
+          }
+        }
+      }
+    }
+  ]
+}

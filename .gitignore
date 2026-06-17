@@ -1,1 +1,25 @@
+# macOS
+.DS_Store
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+build/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# XcodeGen — the project is generated from project.yml, never committed.
+*.xcodeproj/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Local working notes (not part of the public repo)
 spec/
