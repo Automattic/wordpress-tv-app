@@ -28,6 +28,15 @@ CODE_SIGNING_STORAGE_OPTIONS = {
   s3_region: 'us-east-2'
 }.freeze
 
+before_all do
+  # Required for `match` to work correctly on CI: creates and unlocks a dedicated
+  # temporary keychain and sets it as the default, so codesign can use the imported
+  # distribution private key non-interactively. Without it, match imports into the
+  # login keychain, whose lock state / key partition list (ACL) makes codesign fail
+  # with `errSecInternalComponent` at the CodeSign step. No-ops locally (non-CI).
+  setup_ci
+end
+
 platform :tvos do
   desc 'Run the WordPressTVCore unit tests (pure Foundation — runs on the host)'
   lane :test do
