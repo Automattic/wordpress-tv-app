@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		155534F23D495554CB277743 /* WordPressTVApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF480493B2914C5DA1605169 /* WordPressTVApp.swift */; };
 		317F835290FAA9620824580D /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94B8421D7A23A81CF5265D83 /* PlayerView.swift */; };
+		632703E90224A54AEEEA26E9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C044A9DC67C475BBCDB8DB9C /* Assets.xcassets */; };
 		64DF0D516F5C8554B53AC943 /* LatestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1903FF375C7E486182DDFCA1 /* LatestView.swift */; };
 		7E87F08BF3EAC0D6B856C146 /* LatestViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE5E6D6BCE03AD29761AD7D4 /* LatestViewModel.swift */; };
 		7F572CA8414901993AFF7739 /* WordPressTVCore in Frameworks */ = {isa = PBXBuildFile; productRef = 3AB50DF763CE521114B5BE11 /* WordPressTVCore */; };
@@ -20,6 +21,7 @@
 		94B8421D7A23A81CF5265D83 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
 		A7220CD30B7E75C7FBF19B5C /* WordPressTVCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WordPressTVCore; path = WordPressTVCore; sourceTree = SOURCE_ROOT; };
 		BE5E6D6BCE03AD29761AD7D4 /* LatestViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatestViewModel.swift; sourceTree = "<group>"; };
+		C044A9DC67C475BBCDB8DB9C /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DF480493B2914C5DA1605169 /* WordPressTVApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordPressTVApp.swift; sourceTree = "<group>"; };
 		F8A8135B975D401A33952531 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -59,6 +61,7 @@
 				C216F8E2A40B0052A8CC1D9B /* App */,
 				73DD203C082B5E424697687E /* Latest */,
 				102F63C9755C8C0047D18298 /* Player */,
+				C044A9DC67C475BBCDB8DB9C /* Assets.xcassets */,
 			);
 			path = WordPressTV;
 			sourceTree = "<group>";
@@ -106,6 +109,7 @@
 			buildPhases = (
 				5F6CDE7B481B1D81721A8C44 /* Sources */,
 				4F5FDF3FA5A18ED36B966B28 /* Frameworks */,
+				EC8EB22EEC3E1A8CA8C25275 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -154,6 +158,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		EC8EB22EEC3E1A8CA8C25275 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				632703E90224A54AEEEA26E9 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		5F6CDE7B481B1D81721A8C44 /* Sources */ = {
