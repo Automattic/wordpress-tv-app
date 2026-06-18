@@ -27,5 +27,8 @@ fastlane/Preview.html
 fastlane/test_output/
 fastlane/README.md
 
+# Bundler — gems install into vendor/bundle (see .bundle/config); the config is committed.
+vendor/
+
 # Local working notes (not part of the public repo)
 spec/
