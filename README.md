@@ -7,14 +7,12 @@ This is an early, intentionally small scaffold: it does **one real thing end to 
 ## Requirements
 
 - macOS with **Xcode 26+** (tvOS 26 SDK)
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
 
 ## Run it
 
-The Xcode project is **generated** from [`project.yml`](project.yml) and is not checked in. Generate it, then open and run:
+Open the project and run — no extra tooling required:
 
 ```sh
-xcodegen generate
 open WordPressTV.xcodeproj
 ```
 
@@ -28,7 +26,7 @@ cd WordPressTVCore && swift test
 
 ## Build & test with Fastlane
 
-[Fastlane](https://fastlane.tools) is the entry point for tooling, and it's what CI (Buildkite) runs. Each lane regenerates the Xcode project first, so you don't need to run `xcodegen` yourself.
+[Fastlane](https://fastlane.tools) is the entry point for tooling, and it's what CI (Buildkite) runs.
 
 ```sh
 bundle install            # once, installs Fastlane from the Gemfile

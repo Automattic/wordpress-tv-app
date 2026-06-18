@@ -1,0 +1,370 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		155534F23D495554CB277743 /* WordPressTVApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF480493B2914C5DA1605169 /* WordPressTVApp.swift */; };
+		317F835290FAA9620824580D /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94B8421D7A23A81CF5265D83 /* PlayerView.swift */; };
+		64DF0D516F5C8554B53AC943 /* LatestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1903FF375C7E486182DDFCA1 /* LatestView.swift */; };
+		7E87F08BF3EAC0D6B856C146 /* LatestViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE5E6D6BCE03AD29761AD7D4 /* LatestViewModel.swift */; };
+		7F572CA8414901993AFF7739 /* WordPressTVCore in Frameworks */ = {isa = PBXBuildFile; productRef = 3AB50DF763CE521114B5BE11 /* WordPressTVCore */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1903FF375C7E486182DDFCA1 /* LatestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatestView.swift; sourceTree = "<group>"; };
+		46C2FA818EA06F4891C1C79C /* WordPressTV.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WordPressTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		94B8421D7A23A81CF5265D83 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
+		A7220CD30B7E75C7FBF19B5C /* WordPressTVCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WordPressTVCore; path = WordPressTVCore; sourceTree = SOURCE_ROOT; };
+		BE5E6D6BCE03AD29761AD7D4 /* LatestViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatestViewModel.swift; sourceTree = "<group>"; };
+		DF480493B2914C5DA1605169 /* WordPressTVApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordPressTVApp.swift; sourceTree = "<group>"; };
+		F8A8135B975D401A33952531 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4F5FDF3FA5A18ED36B966B28 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7F572CA8414901993AFF7739 /* WordPressTVCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		102F63C9755C8C0047D18298 /* Player */ = {
+			isa = PBXGroup;
+			children = (
+				94B8421D7A23A81CF5265D83 /* PlayerView.swift */,
+			);
+			path = Player;
+			sourceTree = "<group>";
+		};
+		23C89B5D56D337F8E1068B6A /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				A7220CD30B7E75C7FBF19B5C /* WordPressTVCore */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		4246F86BE6803D2ED951288B /* WordPressTV */ = {
+			isa = PBXGroup;
+			children = (
+				F8A8135B975D401A33952531 /* Info.plist */,
+				C216F8E2A40B0052A8CC1D9B /* App */,
+				73DD203C082B5E424697687E /* Latest */,
+				102F63C9755C8C0047D18298 /* Player */,
+			);
+			path = WordPressTV;
+			sourceTree = "<group>";
+		};
+		561FC4C34A85FBBA06B9F5CA = {
+			isa = PBXGroup;
+			children = (
+				23C89B5D56D337F8E1068B6A /* Packages */,
+				4246F86BE6803D2ED951288B /* WordPressTV */,
+				BCC45B68B89EAD345E289E1E /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		73DD203C082B5E424697687E /* Latest */ = {
+			isa = PBXGroup;
+			children = (
+				1903FF375C7E486182DDFCA1 /* LatestView.swift */,
+				BE5E6D6BCE03AD29761AD7D4 /* LatestViewModel.swift */,
+			);
+			path = Latest;
+			sourceTree = "<group>";
+		};
+		BCC45B68B89EAD345E289E1E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				46C2FA818EA06F4891C1C79C /* WordPressTV.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C216F8E2A40B0052A8CC1D9B /* App */ = {
+			isa = PBXGroup;
+			children = (
+				DF480493B2914C5DA1605169 /* WordPressTVApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		8C7D3000BB1CC1131BACF509 /* WordPressTV */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9D289FBFF40AAF197E328837 /* Build configuration list for PBXNativeTarget "WordPressTV" */;
+			buildPhases = (
+				5F6CDE7B481B1D81721A8C44 /* Sources */,
+				4F5FDF3FA5A18ED36B966B28 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WordPressTV;
+			packageProductDependencies = (
+				3AB50DF763CE521114B5BE11 /* WordPressTVCore */,
+			);
+			productName = WordPressTV;
+			productReference = 46C2FA818EA06F4891C1C79C /* WordPressTV.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A66B1BFAACA132D7CE705BB7 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					8C7D3000BB1CC1131BACF509 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = C9E9B78F38140C4BDAF614B7 /* Build configuration list for PBXProject "WordPressTV" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 561FC4C34A85FBBA06B9F5CA;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D8536BED91769A545AE923F7 /* XCLocalSwiftPackageReference "WordPressTVCore" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = BCC45B68B89EAD345E289E1E /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8C7D3000BB1CC1131BACF509 /* WordPressTV */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5F6CDE7B481B1D81721A8C44 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				64DF0D516F5C8554B53AC943 /* LatestView.swift in Sources */,
+				7E87F08BF3EAC0D6B856C146 /* LatestViewModel.swift in Sources */,
+				317F835290FAA9620824580D /* PlayerView.swift in Sources */,
+				155534F23D495554CB277743 /* WordPressTVApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		3D47A9B5678C921BFFB4CAAB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TVOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+		7F9781D8985F06E1C66C75D7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WordPressTV/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = tv.wordpress.WordPressTV;
+				SDKROOT = appletvos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 3;
+			};
+			name = Debug;
+		};
+		C2C9B17D4EBA95F5EB2A2E53 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TVOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		E849E8CC5D543D21BA97D749 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WordPressTV/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = tv.wordpress.WordPressTV;
+				SDKROOT = appletvos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 3;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		9D289FBFF40AAF197E328837 /* Build configuration list for PBXNativeTarget "WordPressTV" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7F9781D8985F06E1C66C75D7 /* Debug */,
+				E849E8CC5D543D21BA97D749 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C9E9B78F38140C4BDAF614B7 /* Build configuration list for PBXProject "WordPressTV" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C2C9B17D4EBA95F5EB2A2E53 /* Debug */,
+				3D47A9B5678C921BFFB4CAAB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		D8536BED91769A545AE923F7 /* XCLocalSwiftPackageReference "WordPressTVCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = WordPressTVCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3AB50DF763CE521114B5BE11 /* WordPressTVCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WordPressTVCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = A66B1BFAACA132D7CE705BB7 /* Project object */;
+}

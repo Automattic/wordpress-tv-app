@@ -14,9 +14,6 @@ build/
 *.dSYM.zip
 *.dSYM
 
-# XcodeGen — the project is generated from project.yml, never committed.
-*.xcodeproj/
-
 # Swift Package Manager
 .build/
 .swiftpm/
