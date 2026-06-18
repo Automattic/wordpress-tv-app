@@ -1,0 +1,3 @@
+# The bundle identifier of the tvOS app. Other App Store Connect details
+# (apple_id, team_id) get added here once signing and release lanes land.
+app_identifier('tv.wordpress.WordPressTV')

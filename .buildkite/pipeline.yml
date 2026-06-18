@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/buildkite/pipeline-schema/main/schema.json
+---
+
+# Variables used in this pipeline (IMAGE_ID, CI_TOOLKIT) are defined in
+# `.buildkite/shared-pipeline-vars`, which is `source`'d before calling
+# `buildkite-agent pipeline upload`.
+
+agents:
+  queue: mac
+
+env:
+  IMAGE_ID: $IMAGE_ID
+
+steps:
+  - label: "📺 Build and Test"
+    command: ".buildkite/commands/build-and-test.sh"
+    plugins: [$CI_TOOLKIT]

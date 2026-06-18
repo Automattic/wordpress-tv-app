@@ -21,5 +21,11 @@ build/
 .build/
 .swiftpm/
 
+# Fastlane — generated reports and outputs (lanes themselves are committed)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/
+fastlane/README.md
+
 # Local working notes (not part of the public repo)
 spec/

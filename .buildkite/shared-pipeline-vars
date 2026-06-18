@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# This file is `source`'d before calling `buildkite-agent pipeline upload`, and is used
+# to set up variables that get interpolated into `pipeline.yml` before it is uploaded.
+
+# The ~> modifier isn't used in .xcode-version today, but strip it just in case.
+XCODE_VERSION=$(sed -E 's/^~> ?//' .xcode-version)
+
+export CI_TOOLKIT_PLUGIN_VERSION="6.0.0"
+
+export IMAGE_ID="xcode-$XCODE_VERSION"
+export CI_TOOLKIT="automattic/a8c-ci-toolkit#$CI_TOOLKIT_PLUGIN_VERSION"

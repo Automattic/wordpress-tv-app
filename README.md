@@ -26,6 +26,16 @@ Run the data-layer tests from the command line (they run on the Mac host — Cor
 cd WordPressTVCore && swift test
 ```
 
+## Build & test with Fastlane
+
+[Fastlane](https://fastlane.tools) is the entry point for tooling, and it's what CI (Buildkite) runs. Each lane regenerates the Xcode project first, so you don't need to run `xcodegen` yourself.
+
+```sh
+bundle install            # once, installs Fastlane from the Gemfile
+bundle exec fastlane test   # run the WordPressTVCore unit tests
+bundle exec fastlane build  # build the app for the tvOS Simulator (no signing)
+```
+
 ## How it's put together
 
 Two modules with a single seam between them:

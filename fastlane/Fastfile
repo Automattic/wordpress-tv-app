@@ -1,0 +1,44 @@
+# frozen_string_literal: true
+
+default_platform(:tvos)
+
+# Paths re-used across lanes.
+PROJECT_ROOT_FOLDER = File.dirname(File.expand_path(__dir__))
+XCODE_PROJECT_PATH = File.join(PROJECT_ROOT_FOLDER, 'WordPressTV.xcodeproj')
+
+APP_SCHEME = 'WordPressTV'
+CORE_PACKAGE_PATH = 'WordPressTVCore'
+
+before_all do
+  # The Xcode project is generated from project.yml and is not committed (see the
+  # README), so regenerate it before any lane that builds it.
+  generate_xcode_project
+end
+
+platform :tvos do
+  desc 'Run the WordPressTVCore unit tests (pure Foundation — runs on the host)'
+  lane :test do
+    spm(
+      command: 'test',
+      package_path: CORE_PACKAGE_PATH
+    )
+  end
+
+  desc 'Build the WordPressTV app for the tvOS Simulator (no code signing)'
+  lane :build do
+    build_app(
+      project: XCODE_PROJECT_PATH,
+      scheme: APP_SCHEME,
+      configuration: 'Debug',
+      destination: 'generic/platform=tvOS Simulator',
+      skip_archive: true,
+      skip_codesigning: true,
+      skip_package_ipa: true
+    )
+  end
+end
+
+# Regenerates the Xcode project from project.yml via XcodeGen.
+private_lane :generate_xcode_project do
+  Dir.chdir(PROJECT_ROOT_FOLDER) { sh('xcodegen', 'generate') }
+end
