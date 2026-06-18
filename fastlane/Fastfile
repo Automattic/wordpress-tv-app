@@ -7,7 +7,26 @@ PROJECT_ROOT_FOLDER = File.dirname(File.expand_path(__dir__))
 XCODE_PROJECT_PATH = File.join(PROJECT_ROOT_FOLDER, 'WordPressTV.xcodeproj')
 
 APP_SCHEME = 'WordPressTV'
+APP_IDENTIFIER = 'com.automattic.wordpresstv'
 CORE_PACKAGE_PATH = 'WordPressTVCore'
+
+# The App Store profile name match generates — note the trailing platform suffix
+# that newer match appends. Mirrors PROVISIONING_PROFILE_SPECIFIER in the project.
+PROVISIONING_PROFILE_NAME = 'match AppStore com.automattic.wordpresstv tvos'
+
+# Automattic Inc. App Store Connect account — home of the shared distribution
+# certificate and the `match AppStore *` provisioning profiles.
+TEAM_ID = 'PZYM8XX95Q'
+
+# Shared Automattic `fastlane match` storage. Every a8c iOS/macOS app points at
+# this same S3 bucket/region; match derives the per-team path prefix from team_id,
+# which is also how it finds the existing shared distribution certificate.
+# (The Apps Infra how-to that still says "Google Cloud" is stale — storage is S3 now.)
+CODE_SIGNING_STORAGE_OPTIONS = {
+  storage_mode: 's3',
+  s3_bucket: 'a8c-fastlane-match',
+  s3_region: 'us-east-2'
+}.freeze
 
 platform :tvos do
   desc 'Run the WordPressTVCore unit tests (pure Foundation — runs on the host)'
@@ -28,6 +47,57 @@ platform :tvos do
       skip_archive: true,
       skip_codesigning: true,
       skip_package_ipa: true
+    )
+  end
+
+  desc 'Install the App Store distribution certificate + provisioning profile via match.'
+  desc 'Run once with `readonly:false` to CREATE the profile for this new app; CI uses'
+  desc 'the default `readonly:true` to just fetch what already exists in S3.'
+  lane :configure_code_signing do |options|
+    readonly = options.fetch(:readonly, true)
+
+    match_args = {
+      **CODE_SIGNING_STORAGE_OPTIONS,
+      type: 'appstore',
+      platform: 'tvos',
+      app_identifier: APP_IDENTIFIER,
+      team_id: TEAM_ID,
+      readonly: readonly
+    }
+
+    # Use the App Store Connect API key when present (CI); otherwise match falls back
+    # to interactive Apple ID auth, which is fine for the local one-time create.
+    match_args[:api_key] = app_store_connect_api_key if ENV['APP_STORE_CONNECT_API_KEY_KEY_ID']
+
+    match(**match_args)
+  end
+
+  desc 'Build the tvOS app for distribution and upload it to TestFlight (internal testing).'
+  lane :build_and_upload_to_testflight do
+    api_key = app_store_connect_api_key
+
+    # Fetch the shared distribution cert + App Store profile from S3 (read-only).
+    configure_code_signing(readonly: true)
+
+    build_app(
+      project: XCODE_PROJECT_PATH,
+      scheme: APP_SCHEME,
+      configuration: 'Release',
+      export_method: 'app-store',
+      export_team_id: TEAM_ID,
+      output_directory: File.join(PROJECT_ROOT_FOLDER, 'build'),
+      export_options: {
+        method: 'app-store',
+        provisioningProfiles: {
+          APP_IDENTIFIER => PROVISIONING_PROFILE_NAME
+        }
+      }
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      app_identifier: APP_IDENTIFIER,
+      skip_waiting_for_build_processing: true
     )
   end
 end

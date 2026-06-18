@@ -24,6 +24,10 @@ fastlane/Preview.html
 fastlane/test_output/
 fastlane/README.md
 
+# Fastlane — local secrets, filled from mobile-secrets. NEVER commit.
+fastlane/.env
+fastlane/.env.local
+
 # Bundler — gems install into vendor/bundle (see .bundle/config); the config is committed.
 vendor/
 
