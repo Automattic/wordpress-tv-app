@@ -13,6 +13,7 @@ env:
 
 steps:
   - label: "📺 Build and Test"
+    key: "build-and-test"
     command: ".buildkite/commands/build-and-test.sh"
     plugins: [$CI_TOOLKIT]
     # Publish this step's result as a commit status on GitHub (the check that
@@ -20,3 +21,10 @@ steps:
     notify:
       - github_commit_status:
           context: "Build and Test"
+
+  # Ship a TestFlight build on every push to trunk, but only once tests pass.
+  - label: "🚀 TestFlight"
+    command: ".buildkite/commands/build-and-upload-to-testflight.sh"
+    plugins: [$CI_TOOLKIT]
+    depends_on: "build-and-test"
+    branches: "trunk"

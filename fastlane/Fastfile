@@ -79,6 +79,10 @@ platform :tvos do
     # Fetch the shared distribution cert + App Store profile from S3 (read-only).
     configure_code_signing(readonly: true)
 
+    # App Store Connect requires a unique, increasing build number per upload.
+    # Use the Buildkite build number on CI; fall back to 1 for local runs.
+    build_number = ENV.fetch('BUILDKITE_BUILD_NUMBER', '1')
+
     build_app(
       project: XCODE_PROJECT_PATH,
       scheme: APP_SCHEME,
@@ -86,6 +90,7 @@ platform :tvos do
       export_method: 'app-store',
       export_team_id: TEAM_ID,
       output_directory: File.join(PROJECT_ROOT_FOLDER, 'build'),
+      xcargs: "CURRENT_PROJECT_VERSION=#{build_number}",
       export_options: {
         method: 'app-store',
         provisioningProfiles: {
