@@ -67,14 +67,25 @@ enum Mapping {
     /// Build a ready-to-play asset. Stream precedence: `files.hd.hls` ->
     /// `files.hd.dash` -> `original` (mp4). The `files.*` values are bare
     /// filenames, made absolute by joining onto the directory of `original`.
-    static func playbackAsset(from info: VideoInfoDTO, fallbackTitle: String) -> PlaybackAsset? {
+    ///
+    /// `preferProgressive` forces the `original` MP4 regardless of available
+    /// renditions: private VideoPress (a8c.tv) plays the `original` URL with a
+    /// `metadata_token` appended, which the HLS/DASH manifests don't honor.
+    static func playbackAsset(
+        from info: VideoInfoDTO,
+        fallbackTitle: String,
+        preferProgressive: Bool = false
+    ) -> PlaybackAsset? {
         guard let original = URL(string: info.original) else { return nil }
         let directory = original.deletingLastPathComponent()
         let hd = info.files["hd"]
 
         let url: URL
         let kind: PlaybackAsset.Kind
-        if let hls = hd?.hls {
+        if preferProgressive {
+            url = original
+            kind = .mp4
+        } else if let hls = hd?.hls {
             url = directory.appending(path: hls)
             kind = .hls
         } else if let dash = hd?.dash {

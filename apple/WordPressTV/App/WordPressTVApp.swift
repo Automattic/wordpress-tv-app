@@ -3,20 +3,37 @@ import WordPressTVCore
 
 @main
 struct WordPressTVApp: App {
-    // Composition root: the one real repository, the one registered source.
-    // Swap `WPComContentRepository` for a fake here to develop UI offline.
-    private let repository: ContentRepository = WPComContentRepository()
+    // Composition root. `auth` owns the a8c.tv token (Keychain + broker) and
+    // feeds it to the repository, which sets `Authorization: Bearer` for the
+    // private source. wordpress.tv stays public/no-auth.
+    private let auth: AuthManager
+    private let repository: ContentRepository
 
     /// Splash plays once per cold launch, then hands off to the content grid.
     @State private var showSplash = true
+
+    init() {
+        let auth = AuthManager(broker: BrokerClient(baseURL: Self.brokerBaseURL))
+        self.auth = auth
+        self.repository = WPComContentRepository(authProvider: auth)
+    }
 
     var body: some Scene {
         WindowGroup {
             if showSplash {
                 SplashView { showSplash = false }
             } else {
-                LatestView(repository: repository, source: Sources.wordpressTV)
+                ContentRootView(repository: repository, auth: auth)
             }
         }
+    }
+
+    /// Broker location: `BrokerBaseURL` from Info.plist, else the deployed broker.
+    private static var brokerBaseURL: URL {
+        if let string = Bundle.main.object(forInfoDictionaryKey: "BrokerBaseURL") as? String,
+           let url = URL(string: string) {
+            return url
+        }
+        return URL(string: "https://wordpresstv-broker.fly.dev")!
     }
 }

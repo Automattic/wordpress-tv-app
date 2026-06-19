@@ -15,6 +15,12 @@
 		7F572CA8414901993AFF7739 /* WordPressTVCore in Frameworks */ = {isa = PBXBuildFile; productRef = 3AB50DF763CE521114B5BE11 /* WordPressTVCore */; };
 		AA01000000000000000000F2 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA01000000000000000000F1 /* SplashView.swift */; };
 		AA01000000000000000000F4 /* Intro.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = AA01000000000000000000F3 /* Intro.mp4 */; };
+		AA0200000000000000000001 /* BrokerClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0200000000000000000101 /* BrokerClient.swift */; };
+		AA0200000000000000000002 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0200000000000000000102 /* KeychainStore.swift */; };
+		AA0200000000000000000003 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0200000000000000000103 /* AuthManager.swift */; };
+		AA0200000000000000000004 /* PairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0200000000000000000104 /* PairingView.swift */; };
+		AA0200000000000000000005 /* PairingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0200000000000000000105 /* PairingViewModel.swift */; };
+		AA0200000000000000000006 /* ContentRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0200000000000000000106 /* ContentRootView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -23,6 +29,12 @@
 		94B8421D7A23A81CF5265D83 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
 		AA01000000000000000000F1 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		AA01000000000000000000F3 /* Intro.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = Intro.mp4; sourceTree = "<group>"; };
+		AA0200000000000000000101 /* BrokerClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrokerClient.swift; sourceTree = "<group>"; };
+		AA0200000000000000000102 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		AA0200000000000000000103 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		AA0200000000000000000104 /* PairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingView.swift; sourceTree = "<group>"; };
+		AA0200000000000000000105 /* PairingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingViewModel.swift; sourceTree = "<group>"; };
+		AA0200000000000000000106 /* ContentRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentRootView.swift; sourceTree = "<group>"; };
 		A7220CD30B7E75C7FBF19B5C /* WordPressTVCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WordPressTVCore; path = WordPressTVCore; sourceTree = SOURCE_ROOT; };
 		BE5E6D6BCE03AD29761AD7D4 /* LatestViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatestViewModel.swift; sourceTree = "<group>"; };
 		C044A9DC67C475BBCDB8DB9C /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -42,6 +54,26 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		AA0200000000000000000201 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				AA0200000000000000000101 /* BrokerClient.swift */,
+				AA0200000000000000000102 /* KeychainStore.swift */,
+				AA0200000000000000000103 /* AuthManager.swift */,
+				AA0200000000000000000104 /* PairingView.swift */,
+				AA0200000000000000000105 /* PairingViewModel.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		AA0200000000000000000202 /* Root */ = {
+			isa = PBXGroup;
+			children = (
+				AA0200000000000000000106 /* ContentRootView.swift */,
+			);
+			path = Root;
+			sourceTree = "<group>";
+		};
 		102F63C9755C8C0047D18298 /* Player */ = {
 			isa = PBXGroup;
 			children = (
@@ -72,8 +104,10 @@
 			children = (
 				F8A8135B975D401A33952531 /* Info.plist */,
 				C216F8E2A40B0052A8CC1D9B /* App */,
+				AA0200000000000000000202 /* Root */,
 				73DD203C082B5E424697687E /* Latest */,
 				102F63C9755C8C0047D18298 /* Player */,
+				AA0200000000000000000201 /* Auth */,
 				AA01000000000000000000F5 /* Splash */,
 				C044A9DC67C475BBCDB8DB9C /* Assets.xcassets */,
 			);
@@ -195,6 +229,12 @@
 				317F835290FAA9620824580D /* PlayerView.swift in Sources */,
 				AA01000000000000000000F2 /* SplashView.swift in Sources */,
 				155534F23D495554CB277743 /* WordPressTVApp.swift in Sources */,
+				AA0200000000000000000001 /* BrokerClient.swift in Sources */,
+				AA0200000000000000000002 /* KeychainStore.swift in Sources */,
+				AA0200000000000000000003 /* AuthManager.swift in Sources */,
+				AA0200000000000000000004 /* PairingView.swift in Sources */,
+				AA0200000000000000000005 /* PairingViewModel.swift in Sources */,
+				AA0200000000000000000006 /* ContentRootView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

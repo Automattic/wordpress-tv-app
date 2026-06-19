@@ -13,6 +13,8 @@ final class LatestViewModel {
         case loaded([Video])
         case empty
         case failed(String)
+        /// The source needs a (valid) token — the UI should route to pairing.
+        case needsAuth
     }
 
     private(set) var state: State = .loading
@@ -31,6 +33,8 @@ final class LatestViewModel {
             // Page 1 only — paging is in the contract but not exercised yet.
             let videos = try await repository.listLatest(source: source, page: 1)
             state = videos.isEmpty ? .empty : .loaded(videos)
+        } catch RepositoryError.unauthorized {
+            state = .needsAuth
         } catch {
             state = .failed("Couldn’t load videos. Please try again.")
         }
@@ -38,5 +42,10 @@ final class LatestViewModel {
 
     func playbackAsset(for video: Video) async throws -> PlaybackAsset {
         try await repository.resolvePlayback(source: source, video: video)
+    }
+
+    /// Ready-to-load poster URL (token-stamped for private sources).
+    func posterURL(for video: Video) async -> URL? {
+        await repository.posterURL(source: source, video: video)
     }
 }

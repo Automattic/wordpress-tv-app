@@ -7,20 +7,25 @@ struct LatestView: View {
     @State private var model: LatestViewModel
     /// Set once playback is resolved; drives the full-screen player cover.
     @State private var playback: PlaybackAsset?
+    /// Called when the source reports it needs (re)authentication — the root
+    /// routes to the pairing screen.
+    private let onAuthRequired: () -> Void
 
-    init(repository: ContentRepository, source: ContentSource) {
+    init(
+        repository: ContentRepository,
+        source: ContentSource,
+        onAuthRequired: @escaping () -> Void = {}
+    ) {
         _model = State(initialValue: LatestViewModel(repository: repository, source: source))
+        self.onAuthRequired = onAuthRequired
     }
 
     var body: some View {
-        NavigationStack {
-            content
-                .navigationTitle("WordPress.tv")
-        }
-        .task { await model.load() }
-        .fullScreenCover(item: $playback) { asset in
-            PlayerView(asset: asset)
-        }
+        content
+            .task { await model.load() }
+            .fullScreenCover(item: $playback) { asset in
+                PlayerView(asset: asset)
+            }
     }
 
     @ViewBuilder
@@ -46,6 +51,15 @@ struct LatestView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
+        case .needsAuth:
+            VStack(spacing: 32) {
+                Text("Sign in to watch a8c.tv.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                Button("Sign in") { onAuthRequired() }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
         case .loaded(let videos):
             grid(videos)
         }
@@ -59,7 +73,7 @@ struct LatestView: View {
             ) {
                 ForEach(videos) { video in
                     Button { play(video) } label: {
-                        VideoCell(video: video)
+                        VideoCell(video: video) { await model.posterURL(for: $0) }
                     }
                     .buttonStyle(.card) // tvOS focus engine: lift + parallax on focus
                 }
@@ -76,14 +90,17 @@ struct LatestView: View {
     }
 }
 
-/// Poster + title cell. `AsyncImage` falls back to a placeholder while loading
-/// or when a poster is missing.
+/// Poster + title cell. The poster URL is resolved lazily (private a8c.tv
+/// posters need a VideoPress token appended), so only on-screen cells request
+/// one. `AsyncImage` falls back to a placeholder while loading or if missing.
 private struct VideoCell: View {
     let video: Video
+    let resolvePoster: (Video) async -> URL?
+    @State private var posterURL: URL?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            AsyncImage(url: video.posterUrl) { phase in
+            AsyncImage(url: posterURL) { phase in
                 switch phase {
                 case .success(let image):
                     image.resizable().scaledToFill()
@@ -106,5 +123,6 @@ private struct VideoCell: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(width: 360)
+        .task { posterURL = await resolvePoster(video) }
     }
 }

@@ -12,6 +12,17 @@ public enum Sources {
         needsPlaybackToken: false
     )
 
+    /// a8c.tv — a private WP.com site. Reads require a user OAuth token obtained
+    /// through the QR pairing broker; VideoPress playback needs a minted JWT.
+    public static let a8cTV = ContentSource(
+        id: "a8ctv",
+        displayName: "a8c.tv",
+        wpcomSite: "a8ctv.wordpress.com",
+        blogID: 14_140_874,
+        auth: .wpcomOAuth,
+        needsPlaybackToken: true
+    )
+
     /// All registered sources, in display order.
-    public static let all: [ContentSource] = [wordpressTV]
+    public static let all: [ContentSource] = [wordpressTV, a8cTV]
 }

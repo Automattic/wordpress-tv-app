@@ -13,6 +13,12 @@ public protocol ContentRepository: Sendable {
     /// Resolve a ready-to-play asset (absolute URL + metadata) for `video`.
     func resolvePlayback(source: ContentSource, video: Video) async throws -> PlaybackAsset
 
+    /// A ready-to-load poster URL for `video`. For a private source this appends
+    /// the VideoPress `metadata_token` (the poster host gates on it just like
+    /// playback); for a public source it's simply `video.posterUrl`. Best-effort:
+    /// returns the bare URL if a token can't be minted.
+    func posterURL(source: ContentSource, video: Video) async -> URL?
+
     // MARK: Declared, not yet implemented (later slices)
 
     func listCategories(source: ContentSource) async throws -> [CategoryRef]
@@ -26,6 +32,9 @@ public enum RepositoryError: Error, Equatable {
     case notImplemented
     /// The source returned data, but nothing playable could be resolved.
     case notPlayable
+    /// The token was missing, rejected, or expired (HTTP 401/403). The UI
+    /// should clear it and re-pair.
+    case unauthorized
     /// Could not build a valid request or asset URL.
     case invalidURL
     /// The transport returned something other than an HTTP response.

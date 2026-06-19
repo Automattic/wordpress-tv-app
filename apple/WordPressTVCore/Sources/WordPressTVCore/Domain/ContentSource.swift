@@ -4,10 +4,14 @@ import Foundation
 /// (WordPress.tv), but the type is general so more can be added later without
 /// touching the UI.
 public struct ContentSource: Identifiable, Equatable, Sendable {
-    /// How a source authenticates. Only `.none` is exercised in the scaffold;
-    /// token/QR-broker flows (a8c.tv) come later.
+    /// How a source authenticates.
+    ///
+    /// - `.none`: public site, no token (wordpress.tv).
+    /// - `.wpcomOAuth`: a private WP.com site read with a user `Authorization:
+    ///   Bearer` token obtained via the QR pairing broker (a8c.tv).
     public enum Auth: Equatable, Sendable {
         case none
+        case wpcomOAuth
     }
 
     public let id: String
