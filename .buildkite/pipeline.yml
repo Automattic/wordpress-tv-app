@@ -5,26 +5,50 @@
 # `.buildkite/shared-pipeline-vars`, which is `source`'d before calling
 # `buildkite-agent pipeline upload`.
 
-agents:
-  queue: mac
-
 env:
   IMAGE_ID: $IMAGE_ID
 
 steps:
-  - label: "📺 Build and Test"
-    key: "build-and-test"
-    command: ".buildkite/commands/build-and-test.sh"
-    plugins: [$CI_TOOLKIT]
-    # Publish this step's result as a commit status on GitHub (the check that
-    # shows up on commits and PRs).
-    notify:
-      - github_commit_status:
-          context: "Build and Test"
+  # ---------------------------------------------------------------------------
+  # 📺 Apple (tvOS) — apple/
+  # Runs on the macOS fleet; uses Fastlane/Xcode under apple/.
+  # ---------------------------------------------------------------------------
+  - group: ":apple: Apple (tvOS)"
+    key: "apple"
+    steps:
+      - label: "📺 Build and Test"
+        key: "apple-build-and-test"
+        command: ".buildkite/commands/apple/build-and-test.sh"
+        agents:
+          queue: mac
+        plugins: [$CI_TOOLKIT]
+        # Publish this step's result as a commit status on GitHub (the check that
+        # shows up on commits and PRs). Keep the context string stable — branch
+        # protection may reference it.
+        notify:
+          - github_commit_status:
+              context: "Build and Test"
 
-  # Ship a TestFlight build on every push to trunk, but only once tests pass.
-  - label: "🚀 TestFlight"
-    command: ".buildkite/commands/build-and-upload-to-testflight.sh"
-    plugins: [$CI_TOOLKIT]
-    depends_on: "build-and-test"
-    branches: "trunk"
+      # Ship a TestFlight build on every push to trunk, but only once tests pass.
+      - label: "🚀 TestFlight"
+        command: ".buildkite/commands/apple/build-and-upload-to-testflight.sh"
+        agents:
+          queue: mac
+        plugins: [$CI_TOOLKIT]
+        depends_on: "apple-build-and-test"
+        branches: "trunk"
+
+  # ---------------------------------------------------------------------------
+  # 🤖 Android (Google TV) — android/
+  # Placeholder until the Gradle project is scaffolded (see android/README.md).
+  # Runs on the macOS queue for now so it doesn't wait on an agent that doesn't
+  # exist yet; move it to a Linux `android` queue once it does real Gradle work.
+  # ---------------------------------------------------------------------------
+  - group: ":android: Android (Google TV)"
+    key: "android"
+    steps:
+      - label: "🤖 Build and Test"
+        key: "android-build-and-test"
+        command: ".buildkite/commands/android/build-and-test.sh"
+        agents:
+          queue: mac

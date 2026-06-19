@@ -1,0 +1,23 @@
+# Android (Google TV) ignores. Patterns are relative to this android/ directory.
+# Standard Android Studio / Gradle ignores — expand as the project is scaffolded.
+
+# Gradle
+.gradle/
+build/
+
+# Android SDK / NDK
+local.properties
+.cxx/
+
+# Build artifacts
+*.apk
+*.aab
+captures/
+
+# Signing — NEVER commit
+*.keystore
+*.jks
+
+# Android Studio / IntelliJ
+.idea/
+*.iml

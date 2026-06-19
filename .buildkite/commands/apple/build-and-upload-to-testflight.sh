@@ -1,5 +1,8 @@
 #!/bin/bash -eu
 
+# The Apple (tvOS) toolchain lives under `apple/` in this monorepo; run from there.
+cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && cd apple
+
 echo "--- :ruby: Setting up Ruby tools"
 install_gems
 

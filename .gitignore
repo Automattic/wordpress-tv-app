@@ -1,35 +1,8 @@
-# macOS
+# Repo-wide ignores only. Platform-specific ignores live in apple/.gitignore
+# and android/.gitignore.
+
+# macOS (can appear in any directory)
 .DS_Store
-
-# Xcode
-xcuserdata/
-*.xcuserstate
-*.xcscmblueprint
-*.xccheckout
-DerivedData/
-build/
-*.moved-aside
-*.hmap
-*.ipa
-*.dSYM.zip
-*.dSYM
-
-# Swift Package Manager
-.build/
-.swiftpm/
-
-# Fastlane — generated reports and outputs (lanes themselves are committed)
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/test_output/
-fastlane/README.md
-
-# Fastlane — local secrets, filled from mobile-secrets. NEVER commit.
-fastlane/.env
-fastlane/.env.local
-
-# Bundler — gems install into vendor/bundle (see .bundle/config); the config is committed.
-vendor/
 
 # Local working notes (not part of the public repo)
 spec/

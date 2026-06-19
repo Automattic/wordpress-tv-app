@@ -1,73 +1,37 @@
-# WordPress.tv for Apple TV
+# WordPress.tv for the big screen
 
-A native **tvOS** app for browsing and watching [WordPress.tv](https://wordpress.tv) — talks, tutorials, and WordCamp sessions — on the big screen.
+A monorepo for the native **WordPress.tv** TV apps — browse and watch [WordPress.tv](https://wordpress.tv) talks, tutorials, and WordCamp sessions on the couch.
 
-This is an early, intentionally small scaffold: it does **one real thing end to end** — fetch the Latest videos from the WordPress.com REST API, show them in a focusable grid, and play one full-screen in AVPlayer. Everything else is stubbed behind a clean seam so it's easy to grow. Contributions welcome. 👋
-
-## Requirements
-
-- macOS with **Xcode 26+** (tvOS 26 SDK)
-
-## Run it
-
-Open the project and run — no extra tooling required:
-
-```sh
-open WordPressTV.xcodeproj
-```
-
-Pick an **Apple TV** simulator and hit Run. The app launches, fetches Latest, and you can focus a video and play it.
-
-Run the data-layer tests from the command line (they run on the Mac host — Core is pure Foundation):
-
-```sh
-cd WordPressTVCore && swift test
-```
-
-## Build & test with Fastlane
-
-[Fastlane](https://fastlane.tools) is the entry point for tooling, and it's what CI (Buildkite) runs.
-
-```sh
-bundle install            # once, installs Fastlane from the Gemfile
-bundle exec fastlane test   # run the WordPressTVCore unit tests
-bundle exec fastlane build  # build the app for the tvOS Simulator (no signing)
-```
-
-## How it's put together
-
-Two modules with a single seam between them:
+Two platforms, one repo:
 
 ```
-WordPressTVCore/        SPM package — NO UI (never imports SwiftUI / AVKit)
-  Domain/               Video, ContentSource, CategoryRef, PlaybackAsset
-  Data/                 ContentRepository (protocol + WP.com impl), wire DTOs, mapping
-  Sources.swift         the single registered source (wordpress.tv)
-WordPressTV/            thin tvOS app target — ALL SwiftUI lives here
-  App/                  @main entry + composition root
-  Latest/               the grid screen + its view model
-  Player/               AVPlayer presentation
+apple/      tvOS app (Apple TV) — Swift / SwiftUI, builds with Xcode + Fastlane
+  WordPressTV/          thin tvOS app target (all SwiftUI lives here)
+  WordPressTVCore/      SPM package — portable, UI-free data layer
+  WordPressTV.xcodeproj
+  fastlane/             build / test / TestFlight lanes
+  Gemfile               Ruby tooling (Fastlane)
+
+android/    Google TV app (Android) — Kotlin / Gradle  ⏳ scaffold pending
+
+.buildkite/ CI for both platforms
+  commands/apple/       tvOS build/test + TestFlight
+  commands/android/     Google TV build/test (placeholder for now)
+  pipeline.yml          one pipeline, one group per platform
 ```
 
-The seam is [`ContentRepository`](WordPressTVCore/Sources/WordPressTVCore/Data/ContentRepository.swift). The app asks it for domain types and a `PlaybackAsset` — a ready-to-play absolute URL plus metadata. **Core resolves the URL; the app feeds it to AVPlayer.** Core never imports AVKit, so the data layer stays portable and unit-testable without a UI.
+## Platforms
 
-`ContentRepository` declares the full content contract; today only `listLatest` and `resolvePlayback` are implemented. `listCategories`, `listByCategory`, and `search` throw `RepositoryError.notImplemented` until their slices land.
+| Platform | Path | Status | Getting started |
+| --- | --- | --- | --- |
+| Apple TV (tvOS) | [`apple/`](apple) | ✅ Builds, tests, ships to TestFlight | [apple/README.md](apple/README.md) |
+| Google TV (Android) | [`android/`](android) | ⏳ Placeholder — not scaffolded yet | [android/README.md](android/README.md) |
 
-### Data flow, in one breath
+Each platform is self-contained under its directory: open `apple/` in Xcode, open `android/` in Android Studio. There's no shared code across the two yet — they're independent apps that happen to live in one repo so CI, issues, and releases stay in one place.
 
-`listLatest` → `GET /sites/wordpress.tv/posts` → decode wire DTOs → map to `[Video]` (HTML-decoded titles, VideoPress GUID, poster). Tap a video → `resolvePlayback` → `GET /videos/{guid}` → pick the best stream (HLS → DASH → MP4) and build its absolute URL → `PlaybackAsset` → `AVPlayer`.
+## CI
 
-## How to add UI
-
-The app target owns all SwiftUI. A new screen typically:
-
-1. Takes a `ContentRepository` (and a `ContentSource`) by initializer — never a concrete type.
-2. Wraps its data calls in an `@Observable` view model exposing a simple state enum (see [`LatestViewModel`](WordPressTV/Latest/LatestViewModel.swift)).
-3. Renders domain types directly.
-
-To develop offline, swap the repository in the [composition root](WordPressTV/App/WordPressTVApp.swift) for a fake conforming to `ContentRepository`.
-
-To add data: implement one of the stubbed methods in [`WPComContentRepository`](WordPressTVCore/Sources/WordPressTVCore/Data/WPComContentRepository.swift), map its wire shape in `Mapping.swift`, and cover it with a fixture-backed test.
+Buildkite runs [`.buildkite/pipeline.yml`](.buildkite/pipeline.yml), which has one group per platform. The Apple group runs on the macOS fleet (Xcode + Fastlane); the Android group is a placeholder that will move to a Linux agent once the Gradle project lands. See the per-platform READMEs for the lanes/tasks each group invokes.
 
 ## License
 

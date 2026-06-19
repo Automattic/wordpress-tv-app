@@ -4,7 +4,8 @@
 # to set up variables that get interpolated into `pipeline.yml` before it is uploaded.
 
 # The ~> modifier isn't used in .xcode-version today, but strip it just in case.
-XCODE_VERSION=$(sed -E 's/^~> ?//' .xcode-version)
+# .xcode-version lives under apple/ in this monorepo (it's an Apple-only concern).
+XCODE_VERSION=$(sed -E 's/^~> ?//' apple/.xcode-version)
 
 export CI_TOOLKIT_PLUGIN_VERSION="6.0.0"
 
