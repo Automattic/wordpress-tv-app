@@ -1,0 +1,12 @@
+# Pairing broker — talks to live WordPress.com.
+# Fill in .env (copy from .env.example) first, then:
+#   docker compose up --build
+services:
+  broker:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      PORT: "8080"
+    restart: unless-stopped

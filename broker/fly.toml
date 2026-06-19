@@ -1,0 +1,39 @@
+# Fly.io config for the WordPress TV pairing broker.
+#
+# IMPORTANT: one always-on machine. The session store is in-memory and
+# single-instance — scaling to zero or running >1 machine would split the
+# rendezvous (a TV could POST /session to one machine and poll another).
+#
+# First deploy:
+#   fly auth login
+#   fly launch --no-deploy --copy-config --name wordpresstv-broker --region waw
+#   fly secrets set WPCOM_CLIENT_ID=xxxx WPCOM_CLIENT_SECRET=yyyy
+#   fly deploy
+#   fly scale count 1            # ensure exactly one machine
+#
+# Re-deploy after code changes:  fly deploy
+
+app = "wordpresstv-broker"
+primary_region = "iad"
+
+[env]
+  PORT = "8080"
+  PUBLIC_BASE_URL = "https://wordpresstv-broker.fly.dev"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = false
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    method = "GET"
+    timeout = "2s"
+    path = "/healthz"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "512mb"
