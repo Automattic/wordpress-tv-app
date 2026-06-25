@@ -19,11 +19,15 @@ class RoutesTest {
         publicBaseUrl = "http://localhost:8080",
         clientId = "test-client",
         clientSecret = "test-secret",
+        a8cClientId = "test-a8c-client",
+        a8cClientSecret = "test-a8c-secret",
         redirectUri = "http://localhost:8080/callback",
         blogId = "14140874",
         authorizeUrl = "https://wpcom.test/oauth2/authorize",
         tokenUrl = "https://wpcom.test/oauth2/token",
-        scope = "",
+        apiBaseUrl = "https://wpcom.test/rest/v1.1",
+        authScope = "auth",
+        a8cScope = "posts videos",
         sessionTtlSeconds = 300,
     )
 
@@ -62,7 +66,7 @@ class RoutesTest {
     }
 
     @Test
-    fun `pair redirects into the WordPress_com authorize url`() = testApplication {
+    fun `pair redirects into the WordPress_com authorize url for phase 1 identity`() = testApplication {
         application { module(testConfig()) }
         // Don't follow the redirect — we want to inspect the Location header.
         val client = createClient { followRedirects = false }
@@ -76,6 +80,9 @@ class RoutesTest {
         assertNotNull(location)
         assertEquals(true, location.startsWith("https://wpcom.test/oauth2/authorize?"))
         assertEquals(true, location.contains("state=${created.sessionId}"))
-        assertEquals(true, location.contains("blog=14140874"))
+        // Phase 1 is identity-only: scope=auth and — crucially — NO blog, so a
+        // non-Automattician never sees an a8c.tv consent screen.
+        assertEquals(true, location.contains("scope=auth"))
+        assertEquals(false, location.contains("blog="))
     }
 }

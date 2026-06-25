@@ -14,7 +14,7 @@ struct PairingView: View {
 
     init(
         broker: BrokerClient,
-        onAuthorized: @escaping (String) -> Void,
+        onAuthorized: @escaping (BrokerClient.PairingResult) -> Void,
         onCancel: @escaping () -> Void
     ) {
         _model = State(initialValue: PairingViewModel(broker: broker, onAuthorized: onAuthorized))
@@ -46,7 +46,7 @@ struct PairingView: View {
                 .foregroundStyle(.white)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("Scan the code with your phone's camera to watch a8c.tv.")
+            Text("Scan the code with your phone's camera to sign in.")
                 .font(.title3)
                 .foregroundStyle(.white.opacity(0.55))
         }
@@ -127,7 +127,7 @@ struct PairingView: View {
                     .foregroundStyle(.white.opacity(0.7))
             }
         case .success:
-            Text("Returning to a8c.tv…")
+            Text("Signing you in…")
                 .font(.headline)
                 .foregroundStyle(.white.opacity(0.7))
         default:

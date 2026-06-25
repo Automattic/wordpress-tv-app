@@ -23,10 +23,19 @@ struct BrokerClient {
         let ttl: TimeInterval
     }
 
+    /// What pairing produced: the signed-in user (for the avatar), plus the
+    /// narrow a8c.tv token — `nil` for a non-Automattician, who is signed in but
+    /// only ever sees public WordPress.tv.
+    struct PairingResult: Equatable {
+        let displayName: String?
+        let avatarURL: URL?
+        let a8cToken: String?
+    }
+
     /// The outcome of a single poll.
     enum PollResult: Equatable {
         case pending
-        case authorized(token: String)
+        case authorized(PairingResult)
         case failed(reason: String)
         case expired
     }
@@ -55,8 +64,13 @@ struct BrokerClient {
         case "pending":
             return .pending
         case "authorized":
-            guard let token = dto.accessToken else { throw BrokerError.invalidResponse }
-            return .authorized(token: token)
+            return .authorized(
+                PairingResult(
+                    displayName: dto.account?.displayName,
+                    avatarURL: dto.account?.avatarUrl.flatMap(URL.init(string:)),
+                    a8cToken: dto.a8cAccessToken
+                )
+            )
         case "error":
             return .failed(reason: dto.error ?? "unknown")
         default:
@@ -88,8 +102,14 @@ private struct CreateSessionDTO: Decodable {
 
 private struct SessionStatusDTO: Decodable {
     let status: String
-    let accessToken: String?
+    let account: AccountDTO?
+    let a8cAccessToken: String?
     let error: String?
+}
+
+private struct AccountDTO: Decodable {
+    let displayName: String?
+    let avatarUrl: String?
 }
 
 private extension JSONDecoder {

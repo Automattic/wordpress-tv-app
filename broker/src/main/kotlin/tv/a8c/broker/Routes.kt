@@ -55,6 +55,8 @@ fun Route.brokerRoutes(
     }
 
     // 2. Phone scans the QR and lands here → redirect into WP.com's OAuth.
+    //    Phase 1 is identity only (scope=auth, no blog): it never touches a8c.tv,
+    //    so a non-Automattician never sees an a8c consent screen.
     get("/pair/{id}") {
         val id = call.parameters["id"].orEmpty()
         val session = store.get(id, now())
@@ -65,10 +67,13 @@ fun Route.brokerRoutes(
             )
             return@get
         }
-        call.respondRedirect(wpcom.authorizeUrl(state = id))
+        call.respondRedirect(wpcom.authorizeUrl(state = id, scope = config.authScope, blog = null, clientId = config.clientId))
     }
 
-    // 3. WP.com redirects back here with code + state; broker exchanges the code.
+    // 3. WP.com redirects back here with code + state. Two passes per session:
+    //      phase 1 (identity) → for an a12s, redirect into phase 2 (a8c.tv);
+    //      phase 2 (a8c.tv token) → done.
+    //    `session.awaitingA8c` tells the two passes apart.
     get("/callback") {
         val params = call.request.queryParameters
         val state = params["state"].orEmpty()
@@ -86,9 +91,17 @@ fun Route.brokerRoutes(
         }
 
         if (oauthError != null) {
-            session.fail("oauth_denied")
-            log.info("session id={}… denied at WP.com ({})", session.id.take(8), oauthError)
-            call.respondDonePage("Login was cancelled. Return to your TV to try again.", ok = false)
+            // Declining the a8c.tv consent (phase 2) isn't a failure — the user is
+            // already identified, so sign them in without a8c access.
+            if (session.awaitingA8c) {
+                session.authorize(a8cToken = null)
+                log.info("session id={}… declined a8c; signed in without it", session.id.take(8))
+                call.respondDonePage("You're signed in. Return to your TV — it'll continue automatically.", ok = true)
+            } else {
+                session.fail("oauth_denied")
+                log.info("session id={}… denied at WP.com ({})", session.id.take(8), oauthError)
+                call.respondDonePage("Login was cancelled. Return to your TV to try again.", ok = false)
+            }
             return@get
         }
 
@@ -98,13 +111,41 @@ fun Route.brokerRoutes(
         }
 
         try {
-            val token = wpcom.exchangeCode(code)
-            session.authorize(token.accessToken)
-            log.info("session id={}… authorized", session.id.take(8))
-            call.respondDonePage("You're paired. Return to your TV — it'll continue automatically.", ok = true)
+            if (session.awaitingA8c) {
+                // Phase 2: exchange the a8c.tv code for the narrow token the TV keeps.
+                // Uses the SEPARATE a8c client so this isn't a second grant for the
+                // identity client + same user (the collision that 500s).
+                val token = wpcom.exchangeCode(code, config.a8cClientId, config.a8cClientSecret).accessToken
+                session.authorize(a8cToken = token)
+                log.info("session id={}… authorized with a8c access", session.id.take(8))
+                call.respondDonePage("You're paired. Return to your TV — it'll continue automatically.", ok = true)
+            } else {
+                // Phase 1: identify the user (identity client), then branch on a12s membership.
+                val identityToken = wpcom.exchangeCode(code, config.clientId, config.clientSecret).accessToken
+                val account = wpcom.fetchAccount(identityToken)
+                session.setAccount(account.displayName, account.avatarUrl)
+
+                val isA12s = runCatching { wpcom.isAutomattician(identityToken) }
+                    .getOrElse { e ->
+                        // Treat an unreachable/forbidden check as "not a12s" so sign-in
+                        // still works; surfaced loudly because it hides a8c from employees.
+                        log.error("automattician check failed for id={}…: {}", session.id.take(8), e.message)
+                        false
+                    }
+
+                if (isA12s) {
+                    session.awaitA8c()
+                    log.info("session id={}… is a12s; requesting a8c.tv access", session.id.take(8))
+                    call.respondRedirect(wpcom.authorizeUrl(state = session.id, scope = config.a8cScope, blog = config.blogId, clientId = config.a8cClientId))
+                } else {
+                    session.authorize(a8cToken = null)
+                    log.info("session id={}… signed in (not a12s)", session.id.take(8))
+                    call.respondDonePage("You're signed in. Return to your TV — it'll continue automatically.", ok = true)
+                }
+            }
         } catch (e: Exception) {
             session.fail("token_exchange_failed")
-            log.error("token exchange failed for id={}…: {}", session.id.take(8), e.message)
+            log.error("callback failed for id={}…: {}", session.id.take(8), e.message)
             call.respondDonePage(
                 "Couldn't complete login. Return to your TV and try again.",
                 ok = false,
@@ -139,9 +180,13 @@ fun Route.brokerRoutes(
             }
 
             SessionStatus.AUTHORIZED -> {
-                val token = session.accessToken
+                val response = SessionStatusResponse(
+                    status = "authorized",
+                    account = AccountDTO(displayName = session.displayName, avatarUrl = session.avatarUrl),
+                    a8cAccessToken = session.a8cAccessToken,
+                )
                 store.remove(id) // single-use rendezvous — collect once, then it's gone
-                call.respond(SessionStatusResponse(status = "authorized", accessToken = token))
+                call.respond(response)
             }
         }
     }

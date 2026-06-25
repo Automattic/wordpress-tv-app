@@ -18,14 +18,35 @@ class PairingSession(
 ) {
     @Volatile var status: SessionStatus = SessionStatus.PENDING
         private set
-    @Volatile var accessToken: String? = null
+    /** The narrow a8c.tv token handed to the TV; null for a signed-in non-a12s. */
+    @Volatile var a8cAccessToken: String? = null
+        private set
+    @Volatile var displayName: String? = null
+        private set
+    @Volatile var avatarUrl: String? = null
+        private set
+    /** Set once phase 1 (identity) is done for an a12s — the next `/callback` for
+     *  this session is phase 2 (the a8c.tv consent). */
+    @Volatile var awaitingA8c: Boolean = false
         private set
     @Volatile var errorMessage: String? = null
         private set
 
-    /** Token exchange succeeded — the TV may now collect [token] on its next poll. */
-    fun authorize(token: String) {
-        accessToken = token
+    /** Record the identity learned in phase 1 (shown on the TV as the avatar). */
+    fun setAccount(displayName: String?, avatarUrl: String?) {
+        this.displayName = displayName
+        this.avatarUrl = avatarUrl
+    }
+
+    /** Phase 1 found an a12s — expect a second `/callback` for the a8c.tv token. */
+    fun awaitA8c() {
+        awaitingA8c = true
+    }
+
+    /** Pairing is complete — the TV may collect the result on its next poll.
+     *  [a8cToken] is null for a non-a12s (signed in, public content only). */
+    fun authorize(a8cToken: String?) {
+        a8cAccessToken = a8cToken
         status = SessionStatus.AUTHORIZED
     }
 

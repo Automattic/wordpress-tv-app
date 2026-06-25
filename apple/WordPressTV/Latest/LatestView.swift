@@ -53,7 +53,7 @@ struct LatestView: View {
 
         case .needsAuth:
             VStack(spacing: 32) {
-                Text("Sign in to watch a8c.tv.")
+                Text("Your session expired. Sign in again to continue.")
                     .font(.title3)
                     .foregroundStyle(.secondary)
                 Button("Sign in") { onAuthRequired() }

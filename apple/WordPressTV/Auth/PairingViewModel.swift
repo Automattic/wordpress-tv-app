@@ -19,13 +19,13 @@ final class PairingViewModel {
     private(set) var state: State = .creating
 
     private let broker: BrokerClient
-    private let onAuthorized: (String) -> Void
+    private let onAuthorized: (BrokerClient.PairingResult) -> Void
     private var task: Task<Void, Never>?
 
     /// How often the TV asks the broker whether the phone has finished.
     private static let pollInterval: Duration = .seconds(2)
 
-    init(broker: BrokerClient, onAuthorized: @escaping (String) -> Void) {
+    init(broker: BrokerClient, onAuthorized: @escaping (BrokerClient.PairingResult) -> Void) {
         self.broker = broker
         self.onAuthorized = onAuthorized
     }
@@ -80,10 +80,10 @@ final class PairingViewModel {
             switch result {
             case .pending:
                 continue
-            case .authorized(let token):
+            case .authorized(let result):
                 state = .success
                 try? await Task.sleep(for: .seconds(0.8)) // let the checkmark land
-                onAuthorized(token)
+                onAuthorized(result)
                 return true
             case .failed(let reason):
                 state = .failed(Self.message(for: reason))
