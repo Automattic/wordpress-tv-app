@@ -4,13 +4,14 @@ import Foundation
 ///
 /// For a public source (wordpress.tv, `auth == .none`) it sends no token, just
 /// like before. For a private source (a8c.tv, `auth == .wpcomOAuth`) it asks the
-/// injected `AuthTokenProviding` for the user's token, sets `Authorization:
-/// Bearer`, and — when the source `needsPlaybackToken` — mints a VideoPress
-/// playback JWT and appends it to the stream URL. A 401/403 surfaces as
-/// `RepositoryError.unauthorized` so the UI can clear the token and re-pair.
+/// injected `AuthTokenProviding` for the user's token and sets `Authorization:
+/// Bearer`. When the source `needsPlaybackToken`, the poster and stream URLs get
+/// a VideoPress `metadata_token` appended — reusing the per-video token WP.com
+/// mints into the post's private embed (`Video.playbackToken`) rather than
+/// minting one (that needs the broad `global` scope the narrow token lacks). A
+/// 401/403 surfaces as `RepositoryError.unauthorized` so the UI can re-pair.
 public final class WPComContentRepository: ContentRepository {
     private static let apiBase = URL(string: "https://public-api.wordpress.com/rest/v1.1")!
-    private static let wpcomV2Base = URL(string: "https://public-api.wordpress.com/wpcom/v2")!
 
     private let session: URLSession
     private let decoder = JSONDecoder()
@@ -64,25 +65,38 @@ public final class WPComContentRepository: ContentRepository {
         }
 
         guard source.needsPlaybackToken else { return asset }
-        guard let token else { throw RepositoryError.unauthorized }
-        // Mint the VideoPress playback JWT and append it to the MP4 URL, exactly
-        // as the proven a8c.tv playback path does:
-        //   "<original>?metadata_token=<token>"
-        let metadataToken = try await playbackToken(site: source.wpcomSite, guid: video.videoGuid, token: token)
-        return asset.appendingQuery(name: "metadata_token", value: metadataToken)
+        // Private VideoPress (a8c.tv) plays the progressive `original` MP4 with the
+        // VideoPress metadata token appended:  "<original>?metadata_token=<token>".
+        // Reuse the token WP.com minted into the post's embed (carried on the
+        // Video) — minting our own needs the broad `global` OAuth scope. A post
+        // without a token is a public video; play it bare rather than treating
+        // the absence as an auth failure (which would force a needless re-pair).
+        guard let playbackToken = video.playbackToken else { return asset }
+        return asset.appendingQuery(name: "metadata_token", value: playbackToken)
     }
 
     public func posterURL(source: ContentSource, video: Video) async -> URL? {
-        guard let poster = video.posterUrl else { return nil }
-        // Public sources serve posters openly.
-        guard source.needsPlaybackToken, let token = await token(for: source) else { return poster }
-        // Private VideoPress posters live on videos.files.wordpress.com and need
-        // the same per-video metadata token as playback. Best-effort: fall back
-        // to the bare URL (the cell just shows its placeholder) if minting fails.
-        guard let metadataToken = try? await playbackToken(site: source.wpcomSite, guid: video.videoGuid, token: token) else {
-            return poster
+        // Public sources (wordpress.tv): the posts list already carried a poster
+        // from the video's attachment thumbnails — serve it openly.
+        guard source.needsPlaybackToken else { return video.posterUrl }
+        // Private VideoPress (a8c.tv): posts carry no attachment, so resolve the
+        // real poster from the video-info endpoint (the user's `videos` scope
+        // authorizes it). Append the embed's metadata token when the post had one
+        // — a private poster on videos.files.wordpress.com is 403 without it; a
+        // public video's poster serves either way. Best-effort: nil (placeholder)
+        // on any failure.
+        guard let token = await token(for: source) else { return video.posterUrl }
+        let infoURL = Self.apiBase.appending(path: "videos/\(video.videoGuid)")
+        do {
+            let info: VideoInfoDTO = try await get(infoURL, token: token)
+            guard let posterString = info.poster, let poster = URL(string: posterString) else {
+                return nil
+            }
+            guard let playbackToken = video.playbackToken else { return poster }
+            return poster.appendingQueryItem(name: "metadata_token", value: playbackToken)
+        } catch {
+            return nil
         }
-        return poster.appendingQueryItem(name: "metadata_token", value: metadataToken)
     }
 
     // MARK: Stubbed (later slices)
@@ -104,17 +118,6 @@ public final class WPComContentRepository: ContentRepository {
     private func token(for source: ContentSource) async -> String? {
         guard source.auth != .none else { return nil }
         return await authProvider?.accessToken(for: source)
-    }
-
-    /// Mint a VideoPress playback JWT for a private video. Returns the
-    /// `metadata_token` to append to the stream URL.
-    private func playbackToken(site: String, guid: String, token: String) async throws -> String {
-        let url = Self.wpcomV2Base.appending(path: "sites/\(site)/media/videopress-playback-jwt/\(guid)")
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let dto: PlaybackJWTDTO = try await send(request)
-        return dto.token
     }
 
     // MARK: Transport
@@ -141,31 +144,6 @@ public final class WPComContentRepository: ContentRepository {
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
-            throw RepositoryError.decodingFailed
-        }
-    }
-}
-
-/// The VideoPress playback-JWT response. WP.com has shipped this token under a
-/// couple of key names over time, so decode tolerantly.
-private struct PlaybackJWTDTO: Decodable {
-    let token: String
-
-    private enum CodingKeys: String, CodingKey {
-        case metadataToken = "metadata_token"
-        case jwtToken = "jwt_token"
-        case token
-    }
-
-    init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        if let v = try c.decodeIfPresent(String.self, forKey: .metadataToken) {
-            token = v
-        } else if let v = try c.decodeIfPresent(String.self, forKey: .jwtToken) {
-            token = v
-        } else if let v = try c.decodeIfPresent(String.self, forKey: .token) {
-            token = v
-        } else {
             throw RepositoryError.decodingFailed
         }
     }

@@ -27,8 +27,24 @@ enum Mapping {
             description: HTML.plainText(post.excerpt),
             posterUrl: poster(from: attachment),
             durationSeconds: attachment?.length,
-            sourceID: sourceID
+            sourceID: sourceID,
+            playbackToken: embedPlaybackToken(in: post.content)
         )
+    }
+
+    /// Parse the VideoPress `metadata_token` out of the private embed in the post
+    /// content. WP.com mints this per-video for the authorized viewer and bakes
+    /// it into the rendered `video.wordpress.com/embed/...` iframe `src`, so the
+    /// app can reuse it for the poster and stream without minting one itself
+    /// (which needs the broad `global` OAuth scope). The token is URL-safe
+    /// base64 with `.` separators; read until the first character outside that
+    /// set (typically `&`, `'`, or `"`). `nil` for public posts (no token).
+    static func embedPlaybackToken(in content: String) -> String? {
+        guard let marker = content.range(of: "metadata_token=") else { return nil }
+        let token = content[marker.upperBound...].prefix {
+            $0.isLetter || $0.isNumber || $0 == "." || $0 == "_" || $0 == "-"
+        }
+        return token.isEmpty ? nil : String(token)
     }
 
     /// The post's first attachment by ascending numeric key — deterministic

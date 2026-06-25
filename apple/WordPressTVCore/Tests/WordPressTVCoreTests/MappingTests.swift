@@ -55,4 +55,24 @@ struct MappingTests {
         #expect(videos[1].durationSeconds == nil) // no length on the embed-only post
         #expect(videos[2].durationSeconds == 4258)
     }
+
+    @Test func publicPostsCarryNoPlaybackToken() throws {
+        // wordpress.tv embeds are open, so there's no metadata token to parse.
+        #expect(try mappedVideos().allSatisfy { $0.playbackToken == nil })
+    }
+
+    @Test func parsesPrivateEmbedMetadataToken() {
+        // The token sits in the VideoPress embed's iframe src, ending at the next
+        // query separator (`&`, often HTML-escaped as `&amp;`).
+        let content = """
+        <iframe src='https://video.wordpress.com/embed/4ld8QgYX?cover=1&amp;\
+        posterUrl=https%3A%2F%2Fexample.com%2Fp.jpg&amp;\
+        metadata_token=eyJ0eXAi.eyJpc3Mi.H0qn-_Zx5f&amp;hd=0'></iframe>
+        """
+        #expect(Mapping.embedPlaybackToken(in: content) == "eyJ0eXAi.eyJpc3Mi.H0qn-_Zx5f")
+    }
+
+    @Test func embedMetadataTokenNilWhenAbsent() {
+        #expect(Mapping.embedPlaybackToken(in: "<iframe src='…/embed/abc?hd=0'></iframe>") == nil)
+    }
 }

@@ -17,6 +17,11 @@ public struct Video: Identifiable, Equatable, Sendable {
     public let durationSeconds: Int?
     /// The `ContentSource.id` this video came from.
     public let sourceID: String
+    /// VideoPress `metadata_token` parsed from the post's private embed. It
+    /// authorizes both the poster image and the progressive stream for a private
+    /// video, minted server-side for the authorized viewer. `nil` for public
+    /// sources (wordpress.tv), whose posters and streams are open.
+    public let playbackToken: String?
 
     public init(
         id: String,
@@ -25,7 +30,8 @@ public struct Video: Identifiable, Equatable, Sendable {
         description: String,
         posterUrl: URL?,
         durationSeconds: Int?,
-        sourceID: String
+        sourceID: String,
+        playbackToken: String? = nil
     ) {
         self.id = id
         self.videoGuid = videoGuid
@@ -34,5 +40,6 @@ public struct Video: Identifiable, Equatable, Sendable {
         self.posterUrl = posterUrl
         self.durationSeconds = durationSeconds
         self.sourceID = sourceID
+        self.playbackToken = playbackToken
     }
 }
