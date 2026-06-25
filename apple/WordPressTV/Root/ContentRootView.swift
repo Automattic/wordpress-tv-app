@@ -75,17 +75,26 @@ struct ContentRootView: View {
         Sources.all.filter { $0.auth == .none || auth.isAuthorizedForA8C }
     }
 
+    /// Selected source pill colour — the WordPress brand blue. Deliberately not
+    /// white: tvOS paints the *focused* control white, so a white selected pill
+    /// would be indistinguishable from simply focusing the other tab.
+    private static let selectedTint = Color(red: 0.22, green: 0.34, blue: 0.91)
+
     @ViewBuilder
     private func sourceButton(_ source: ContentSource) -> some View {
-        let button = Button { selected = source } label: {
+        let isSelected = source.id == selected.id
+        Button { selected = source } label: {
             Text(source.displayName)
+                .fontWeight(isSelected ? .semibold : .regular)
         }
-
-        if source.id == selected.id {
-            button.buttonStyle(.borderedProminent)
-        } else {
-            button.buttonStyle(.bordered)
-        }
+        .buttonStyle(.borderedProminent)
+        // Drive the selected look from a persistent brand-blue tint rather than
+        // the bordered/prominent defaults. On tvOS the system focus highlight
+        // brightens whichever pill is focused, so relying on those defaults (or
+        // a white tint) makes the *focused* tab read as selected. A blue
+        // selected pill vs. a faint translucent one stays unambiguous wherever
+        // focus sits — including when the other tab is focused but not yet open.
+        .tint(isSelected ? Self.selectedTint : .white.opacity(0.16))
     }
 
     /// Right side of the bar: a Gravatar (tap → log out) when signed in, a plain
