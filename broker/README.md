@@ -22,9 +22,9 @@ polls and collects it **once**.
 | Endpoint            | Auth          | Does |
 |---------------------|---------------|------|
 | `POST /session`     | none          | Mint `session_id` + `poll_secret`; return `{ session_id, poll_secret, qr_url, ttl }`. |
-| `GET /pair/{id}`    | none          | 302 → WP.com `/oauth2/authorize` with `state={id}`. |
-| `GET /callback`     | none          | Validate `state`; exchange `code`→token (uses `client_secret`); show a "return to your TV" page. |
-| `GET /session/{id}` | `poll_secret` | `{status:pending}`, or `{status:authorized, access_token}` **once** then deletes the record. Expired → `410`. |
+| `GET /pair/{id}`    | none          | 302 → WP.com `/oauth2/authorize` with `state={id}` (phase 1: identity, `scope=auth`). |
+| `GET /callback`     | none          | Validate `state`; exchange `code`→token. Phase 1 signs the user in; Automatticians are bounced into phase 2 for the a8c.tv token. Shows a "return to your TV" page. |
+| `GET /session/{id}` | `poll_secret` | `{status:pending}`, `{status:authorized, account, a8c_access_token}` (token `null` for non-a12s), or `{status:error}` — returned **once** then deletes the record. Expired → `410`. |
 | `GET /healthz`      | none          | Liveness check. |
 
 `poll_secret` goes in the `X-Poll-Secret` header (or `?poll_secret=`). It binds the
@@ -35,10 +35,17 @@ poll to the TV that created the session, so only that TV can collect the token.
 The broker is the easy part — it's done. The real flow isn't purely local, so it
 needs two things from you before it can work end to end:
 
-### 1. A WordPress.com OAuth application
+### 1. Two WordPress.com OAuth applications
 
-Register one at <https://developer.wordpress.com/apps/>. It gives you a
-**`client_id`** and **`client_secret`**, and you set its **Redirect URL**.
+Register **two** apps at <https://developer.wordpress.com/apps/> — they must be
+**separate** (the same app + same user on a second grant makes WP.com's
+`/oauth2/token` return an empty 500):
+
+- **Identity app** — phase 1 sign-in (`scope=auth`); gives `WPCOM_CLIENT_ID` / `WPCOM_CLIENT_SECRET`.
+- **a8c.tv app** — phase 2 a8c.tv token (`scope=posts videos`, blog `a8ctv.wordpress.com`);
+  gives `WPCOM_A8C_CLIENT_ID` / `WPCOM_A8C_CLIENT_SECRET`.
+
+For **both** apps:
 
 - **Type:** Web (server-side; we hold a `client_secret` and use Authorization Code).
 - **Redirect URL:** must be **exactly** `https://<your-broker-domain>/callback`
@@ -66,19 +73,22 @@ be reachable from the public internet over **HTTPS** at a **stable** domain.
 cp .env.example .env
 ```
 
-| Var                   | You set it to |
-|-----------------------|---------------|
-| `WPCOM_CLIENT_ID`     | from the WP.com app |
-| `WPCOM_CLIENT_SECRET` | from the WP.com app |
-| `PUBLIC_BASE_URL`     | your HTTPS domain, no trailing slash (e.g. the tunnel URL) |
-| `REDIRECT_URI`        | leave blank → defaults to `$PUBLIC_BASE_URL/callback` (must match the app) |
+| Var                       | You set it to |
+|---------------------------|---------------|
+| `WPCOM_CLIENT_ID`         | from the **identity** app |
+| `WPCOM_CLIENT_SECRET`     | from the **identity** app |
+| `WPCOM_A8C_CLIENT_ID`     | from the **a8c.tv** app |
+| `WPCOM_A8C_CLIENT_SECRET` | from the **a8c.tv** app |
+| `PUBLIC_BASE_URL`         | your HTTPS domain, no trailing slash (e.g. the tunnel URL) |
+
+The redirect URI isn't configurable — it's always derived as `$PUBLIC_BASE_URL/callback`,
+so register exactly that on both apps.
 
 That's it. No database, no Redis, no secrets beyond the WP.com client credentials.
 
-> **Also required (not config):** the person who scans + logs in must have read
-> access to the private a8c.tv site. And per spec §9, whether a `WPCOM_SCOPE` is
-> needed to read a private site + mint the VideoPress playback JWT is still
-> **open to verify** — start with it empty.
+> **Also required (not config):** only **Automatticians** get a8c.tv access — the
+> person who scans must log in with an Automattician account that can read the
+> private a8c.tv site. Everyone else is signed in to public WordPress.tv only.
 
 ## Run it
 
@@ -86,8 +96,8 @@ That's it. No database, no Redis, no secrets beyond the WP.com client credential
 # 1. (local) start a tunnel → note the https URL
 cloudflared tunnel --url http://localhost:8080
 
-# 2. register/point the WP.com app's Redirect URL at  https://<that-url>/callback
-# 3. put client_id / client_secret / PUBLIC_BASE_URL into .env
+# 2. register/point BOTH apps' Redirect URL at  https://<that-url>/callback
+# 3. put both apps' client_id/secret + PUBLIC_BASE_URL into .env
 # 4. start the broker
 docker compose up --build
 ```
@@ -103,45 +113,25 @@ curl -s -X POST https://<your-url>/session | jq
 
 # TV polls until authorized (needs the poll secret)
 curl -s "https://<your-url>/session/<session_id>" -H "X-Poll-Secret: <poll_secret>" | jq
-# → {"status":"pending"} … then {"status":"authorized","access_token":"…"}
+# → {"status":"pending"} … then {"status":"authorized","account":{…},"a8c_access_token":"…"}
 ```
-
-## Deploy (Fly.io)
-
-`fly.toml` is configured for **one always-on machine** — the session store is
-in-memory and single-instance, so it must never scale to zero or run more than one.
-Secrets come from a gitignored `fly.secrets` file (not the shell):
-
-```sh
-cp fly.secrets.example fly.secrets   # fill in WPCOM_CLIENT_ID / WPCOM_CLIENT_SECRET
-make deploy                          # = fly secrets import < fly.secrets && fly deploy
-```
-
-`make secrets` re-pushes them on their own when they change. Non-secret config
-(`PUBLIC_BASE_URL`, `PORT`) lives in `fly.toml [env]`.
-
-One-time app creation: `fly launch --no-deploy --copy-config --name <app> --region <r>`
-(run from this `broker/` dir so Fly finds the Dockerfile + `fly.toml`). Then register
-`https://<app>.fly.dev/callback` as a redirect URL on the WP.com app.
 
 ## Configuration
 
-| Env var               | Required | Default | Notes |
-|-----------------------|:--------:|---------|-------|
-| `WPCOM_CLIENT_ID`     | ✅       | —       | From developer.wordpress.com/apps. |
-| `WPCOM_CLIENT_SECRET` | ✅       | —       | Server-side only; never logged. |
-| `PUBLIC_BASE_URL`     |          | `http://localhost:8080` | Public base for `qr_url`; HTTPS in prod. |
-| `REDIRECT_URI`        |          | `$PUBLIC_BASE_URL/callback` | Must match the WP.com app exactly. |
-| `WPCOM_AUTHORIZE_URL` |          | `…/oauth2/authorize` | Override only for testing against a mock. |
-| `WPCOM_TOKEN_URL`     |          | `…/oauth2/token` | Override only for testing against a mock. |
-| `WPCOM_SCOPE`         |          | _(empty)_ | See spec §9 open questions. |
-| `PORT`                |          | `8080`  | |
+| Env var                   | Required | Default | Notes |
+|---------------------------|:--------:|---------|-------|
+| `WPCOM_CLIENT_ID`         | ✅       | —       | Identity app, from developer.wordpress.com/apps. |
+| `WPCOM_CLIENT_SECRET`     | ✅       | —       | Identity app; server-side only, never logged. |
+| `WPCOM_A8C_CLIENT_ID`     | ✅       | —       | a8c.tv app; must be a separate app from the identity one. |
+| `WPCOM_A8C_CLIENT_SECRET` | ✅       | —       | a8c.tv app; server-side only, never logged. |
+| `PUBLIC_BASE_URL`         | ✅       | —       | Public base for `qr_url`; HTTPS in prod. Redirect URI is derived as `$PUBLIC_BASE_URL/callback`. |
+| `PORT`                    |          | `8080`  | |
 
 ## Develop without Docker
 
 ```sh
 ./gradlew test            # unit + route tests
-./gradlew run             # needs WPCOM_CLIENT_ID / WPCOM_CLIENT_SECRET in the env
+./gradlew run             # needs the required env vars set (see Configuration)
 ```
 
 ## Security notes (from spec §8)
