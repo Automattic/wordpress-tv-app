@@ -135,7 +135,6 @@ One-time app creation: `fly launch --no-deploy --copy-config --name <app> --regi
 | `WPCOM_AUTHORIZE_URL` |          | `…/oauth2/authorize` | Override only for testing against a mock. |
 | `WPCOM_TOKEN_URL`     |          | `…/oauth2/token` | Override only for testing against a mock. |
 | `WPCOM_SCOPE`         |          | _(empty)_ | See spec §9 open questions. |
-| `SESSION_TTL_SECONDS` |          | `300` | Session lifetime. |
 | `PORT`                |          | `8080`  | |
 
 ## Develop without Docker
@@ -148,7 +147,7 @@ One-time app creation: `fly launch --no-deploy --copy-config --name <app> --regi
 ## Security notes (from spec §8)
 
 - `session_id` / `poll_secret` are 256-bit, CSPRNG, URL-safe.
-- Sessions are short-lived (`SESSION_TTL_SECONDS`) and **single-use** (deleted on collect).
+- Sessions are short-lived (5 min) and **single-use** (deleted on collect).
 - The token is **a8c.tv-scoped** — minimal blast radius if leaked.
 - The `client_secret` lives only in the broker env; tokens are never logged.
 - Terminate **HTTPS** in front of this container in production.

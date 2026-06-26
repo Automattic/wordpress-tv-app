@@ -36,7 +36,7 @@ fun Application.module(config: Config) {
         }
     }
 
-    val store = SessionStore(config.sessionTtlSeconds)
+    val store = SessionStore(Config.SESSION_TTL_SECONDS)
     val wpcom = WpComClient(config)
 
     routing {

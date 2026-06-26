@@ -17,11 +17,13 @@ data class Config(
     val apiBaseUrl: String,
     val authScope: String,
     val a8cScope: String,
-    val sessionTtlSeconds: Long,
 ) {
     companion object {
         const val A8C_TV_BLOG = "a8ctv.wordpress.com"
         const val CALLBACK_PATH = "/callback"
+
+        /** Session lifetime: short-lived and single-use (deleted on collect). */
+        const val SESSION_TTL_SECONDS = 300L
 
         const val AUTHORIZE_URL = "https://public-api.wordpress.com/oauth2/authorize"
         const val TOKEN_URL = "https://public-api.wordpress.com/oauth2/token"
@@ -53,7 +55,6 @@ data class Config(
                 apiBaseUrl = API_BASE_URL,
                 authScope = AUTH_SCOPE,
                 a8cScope = A8C_SCOPE,
-                sessionTtlSeconds = opt("SESSION_TTL_SECONDS", "300").toLong(),
             )
         }
     }

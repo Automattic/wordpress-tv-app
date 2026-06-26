@@ -19,7 +19,6 @@ class WpComClientTest {
         apiBaseUrl = "https://public-api.wordpress.com/rest/v1.1",
         authScope = "auth",
         a8cScope = "posts videos",
-        sessionTtlSeconds = 300,
     )
 
     @Test

@@ -44,7 +44,7 @@ fun Route.brokerRoutes(
                 sessionId = session.id,
                 pollSecret = session.pollSecret,
                 qrUrl = "${config.publicBaseUrl}/pair/${session.id}",
-                ttl = config.sessionTtlSeconds,
+                ttl = Config.SESSION_TTL_SECONDS,
             ),
         )
     }
