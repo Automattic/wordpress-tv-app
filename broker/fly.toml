@@ -7,7 +7,7 @@
 # First deploy:
 #   fly auth login
 #   fly launch --no-deploy --copy-config --name wordpresstv-broker --region waw
-#   fly secrets set WPCOM_CLIENT_ID=xxxx WPCOM_CLIENT_SECRET=yyyy
+#   fly secrets set WPCOM_CLIENT_ID=… WPCOM_CLIENT_SECRET=… WPCOM_A8C_CLIENT_ID=… WPCOM_A8C_CLIENT_SECRET=…
 #   fly deploy
 #   fly scale count 1            # ensure exactly one machine
 #
