@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WordPress TV</string>
+
+    <!-- Top bar -->
+    <string name="account">Account</string>
+    <string name="sign_in">Sign in</string>
+    <string name="log_out">Log out</string>
+    <string name="cancel">Cancel</string>
+
+    <!-- Latest grid -->
+    <string name="retry">Retry</string>
+    <string name="videos_load_error">Couldn\'t load videos. Please try again.</string>
+    <string name="no_videos">No videos yet.</string>
+    <string name="session_expired">Your session expired. Sign in again to continue.</string>
+
+    <!-- Pairing / sign-in -->
+    <string name="pairing_headline">Sign in with your\nWordPress.com account</string>
+    <string name="pairing_subhead">Scan the code with your phone\'s camera to sign in.</string>
+    <string name="pairing_waiting">Waiting for you to sign in on your phone…</string>
+    <string name="pairing_signing_in">Signing you in…</string>
+    <string name="pairing_signed_in">Signed in</string>
+    <string name="pairing_try_again">Try again</string>
+    <string name="broker_unreachable">Couldn\'t reach the sign-in service. Make sure the broker is running, then try again.</string>
+    <string name="sign_in_cancelled">Sign-in was cancelled on your phone. Try again.</string>
+    <string name="sign_in_incomplete">Sign-in didn\'t complete. Try again.</string>
+    <string name="sign_in_error">Something went wrong signing in. Try again.</string>
+</resources>

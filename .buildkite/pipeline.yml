@@ -40,9 +40,10 @@ steps:
 
   # ---------------------------------------------------------------------------
   # 🤖 Android (Google TV) — android/
-  # Placeholder until the Gradle project is scaffolded (see android/README.md).
-  # Runs on the macOS queue for now so it doesn't wait on an agent that doesn't
-  # exist yet; move it to a Linux `android` queue once it does real Gradle work.
+  # Runs the :core unit tests and assembles the debug APK with Gradle. Needs a
+  # Linux agent with the Android SDK — Gradle does not need the macOS fleet. If
+  # your Buildkite doesn't have an `android` queue yet, point this at one that
+  # has the SDK (e.g. `queue: mac`) until it does.
   # ---------------------------------------------------------------------------
   - group: ":android: Android (Google TV)"
     key: "android"
@@ -51,4 +52,4 @@ steps:
         key: "android-build-and-test"
         command: ".buildkite/commands/android/build-and-test.sh"
         agents:
-          queue: mac
+          queue: android
