@@ -13,10 +13,27 @@ struct WordPressTVApp: App {
     @State private var showSplash = true
 
     init() {
-        let auth = AuthManager(broker: BrokerClient(baseURL: Self.brokerBaseURL))
+        let auth = AuthManager(broker: BrokerClient(baseURL: Self.brokerBaseURL, session: Self.brokerSession))
         self.auth = auth
         self.repository = WPComContentRepository(authProvider: auth)
     }
+
+    #if DEBUG
+    /// TEMP: route broker traffic through mitmproxy on the Mac (127.0.0.1:8082,
+    /// reachable from the sim via shared loopback) so we can see the exact
+    /// request/response on the wire. mitmproxy resolves wordpress.tv via the
+    /// Mac's /etc/hosts → the sandbox. Remove before shipping.
+    private static var brokerSession: URLSession {
+        let c = URLSessionConfiguration.ephemeral
+        c.connectionProxyDictionary = [
+            "HTTPEnable": 1, "HTTPProxy": "127.0.0.1", "HTTPPort": 8082,
+            "HTTPSEnable": 1, "HTTPSProxy": "127.0.0.1", "HTTPSPort": 8082,
+        ]
+        return URLSession(configuration: c)
+    }
+    #else
+    private static var brokerSession: URLSession { .shared }
+    #endif
 
     var body: some Scene {
         WindowGroup {
