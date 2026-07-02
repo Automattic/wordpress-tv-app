@@ -13,7 +13,9 @@ android {
         applicationId = "com.automattic.wordpresstv"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
+        // Build number injected by the release build (`-PversionCode`), like the
+        // iOS build number; falls back to 1 for local builds.
+        versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 1
         versionName = "1.0"
 
         // Broker location — the /pairing routes on wordpress.tv (wpcom), mirroring

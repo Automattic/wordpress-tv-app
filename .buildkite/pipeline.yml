@@ -54,11 +54,12 @@ steps:
         agents:
           queue: android
 
-      # Build a signed release APK on trunk and keep it as a Buildkite artifact
-      # (grab it from the build's Artifacts tab — e.g. to upload to Play). Needs
-      # $CI_TOOLKIT to provision the upload-key secrets (UPLOAD_KEYSTORE_*).
-      - label: "📦 Release APK"
-        key: "android-release-apk"
+      # Build a signed release AAB + APK on trunk and keep them as Buildkite
+      # artifacts (grab them from the build's Artifacts tab — the .aab for Play,
+      # the .apk for sideloading). Needs $CI_TOOLKIT to provision the upload-key
+      # secrets (UPLOAD_KEYSTORE_*).
+      - label: "📦 Release AAB + APK"
+        key: "android-release"
         command: ".buildkite/commands/android/build-and-upload-release.sh"
         agents:
           queue: android
