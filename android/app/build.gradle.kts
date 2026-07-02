@@ -10,7 +10,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.automattic.wordpresstv"
+        applicationId = "tv.wordpress"
         minSdk = 23
         targetSdk = 35
         // Build number injected by the release build (`-PversionCode`), like the
