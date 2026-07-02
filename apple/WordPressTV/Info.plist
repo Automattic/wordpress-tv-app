@@ -24,8 +24,8 @@
 	<false/>
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
-	<!-- Pairing broker base URL (the deployed HTTPS broker). -->
+	<!-- Pairing broker base URL: the /pairing routes on wordpress.tv (wpcom). -->
 	<key>BrokerBaseURL</key>
-	<string>https://wordpresstv-broker.fly.dev</string>
+	<string>https://wordpress.tv/pairing</string>
 </dict>
 </plist>

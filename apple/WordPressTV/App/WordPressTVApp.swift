@@ -28,12 +28,13 @@ struct WordPressTVApp: App {
         }
     }
 
-    /// Broker location: `BrokerBaseURL` from Info.plist, else the deployed broker.
+    /// Broker location: `BrokerBaseURL` from Info.plist, else the broker's
+    /// `/pairing` routes on wordpress.tv.
     private static var brokerBaseURL: URL {
         if let string = Bundle.main.object(forInfoDictionaryKey: "BrokerBaseURL") as? String,
            let url = URL(string: string) {
             return url
         }
-        return URL(string: "https://wordpresstv-broker.fly.dev")!
+        return URL(string: "https://wordpress.tv/pairing")!
     }
 }

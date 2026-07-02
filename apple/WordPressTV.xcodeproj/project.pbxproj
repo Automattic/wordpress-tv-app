@@ -21,6 +21,7 @@
 		AA0200000000000000000004 /* PairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0200000000000000000104 /* PairingView.swift */; };
 		AA0200000000000000000005 /* PairingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0200000000000000000105 /* PairingViewModel.swift */; };
 		AA0200000000000000000006 /* ContentRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0200000000000000000106 /* ContentRootView.swift */; };
+		AA0200000000000000000007 /* WPComAccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0200000000000000000107 /* WPComAccountService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,6 +36,7 @@
 		AA0200000000000000000104 /* PairingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingView.swift; sourceTree = "<group>"; };
 		AA0200000000000000000105 /* PairingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingViewModel.swift; sourceTree = "<group>"; };
 		AA0200000000000000000106 /* ContentRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentRootView.swift; sourceTree = "<group>"; };
+		AA0200000000000000000107 /* WPComAccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WPComAccountService.swift; sourceTree = "<group>"; };
 		A7220CD30B7E75C7FBF19B5C /* WordPressTVCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WordPressTVCore; path = WordPressTVCore; sourceTree = SOURCE_ROOT; };
 		BE5E6D6BCE03AD29761AD7D4 /* LatestViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatestViewModel.swift; sourceTree = "<group>"; };
 		C044A9DC67C475BBCDB8DB9C /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -62,6 +64,7 @@
 				AA0200000000000000000103 /* AuthManager.swift */,
 				AA0200000000000000000104 /* PairingView.swift */,
 				AA0200000000000000000105 /* PairingViewModel.swift */,
+				AA0200000000000000000107 /* WPComAccountService.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -235,6 +238,7 @@
 				AA0200000000000000000004 /* PairingView.swift in Sources */,
 				AA0200000000000000000005 /* PairingViewModel.swift in Sources */,
 				AA0200000000000000000006 /* ContentRootView.swift in Sources */,
+				AA0200000000000000000007 /* WPComAccountService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

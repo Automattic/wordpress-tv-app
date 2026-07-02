@@ -1,15 +1,20 @@
 import Foundation
 
-/// HTTP client for the WordPress.com OAuth pairing broker (the Kotlin service in
-/// `/broker`). The TV only ever talks to the broker — never to WP.com OAuth
-/// directly. Two calls matter on the TV side:
+/// HTTP client for the WordPress.com OAuth pairing broker (the service in
+/// `/broker`). The TV never talks to WP.com *OAuth* directly — the broker runs
+/// the whole authorization dance. Two calls matter on the TV side:
 ///
 /// 1. `createSession()` → `POST /session` to start a pairing session and get the
 ///    `qr_url` to render plus a `pollSecret` only this TV holds.
-/// 2. `poll(id:secret:)` → `GET /session/{id}` until the token arrives.
+/// 2. `poll(id:secret:)` → `GET /session/{id}` until the tokens arrive.
+///
+/// On success the broker hands back the WP.com access tokens themselves (not
+/// denormalized profile fields): the identity token that the app trades for the
+/// account at `/me`, plus — for Automatticians — the a8c.tv content token.
 struct BrokerClient {
-    /// Base URL of the deployed broker (e.g. `https://wordpresstv-broker.fly.dev`).
-    /// Configured at the composition root from Info.plist.
+    /// Base URL of the broker's `/pairing` routes (e.g.
+    /// `https://wordpress.tv/pairing`), so `session` resolves to
+    /// `/pairing/session`. Configured at the composition root from Info.plist.
     let baseURL: URL
     var session: URLSession = .shared
 
@@ -23,12 +28,14 @@ struct BrokerClient {
         let ttl: TimeInterval
     }
 
-    /// What pairing produced: the signed-in user (for the avatar), plus the
-    /// narrow a8c.tv token — `nil` for a non-Automattician, who is signed in but
-    /// only ever sees public WordPress.tv.
+    /// What pairing produced: the identity (`scope=auth`) token — which the app
+    /// trades for the account (name + avatar) at `/me` — plus the narrow a8c.tv
+    /// token, `nil` for a non-Automattician who is signed in but only ever sees
+    /// public WordPress.tv.
     struct PairingResult: Equatable {
-        let displayName: String?
-        let avatarURL: URL?
+        /// Identity token (`scope=auth`): identity-only; used to call `/me`.
+        let authToken: String
+        /// a8c.tv token (`scope=posts videos`); `nil` for a non-Automattician.
         let a8cToken: String?
     }
 
@@ -64,12 +71,13 @@ struct BrokerClient {
         case "pending":
             return .pending
         case "authorized":
+            // On success the broker always returns the identity token; without
+            // it we can't resolve the account, so treat its absence as invalid.
+            guard let authToken = dto.authAccessToken else {
+                throw BrokerError.invalidResponse
+            }
             return .authorized(
-                PairingResult(
-                    displayName: dto.account?.displayName,
-                    avatarURL: dto.account?.avatarUrl.flatMap(URL.init(string:)),
-                    a8cToken: dto.a8cAccessToken
-                )
+                PairingResult(authToken: authToken, a8cToken: dto.a8cAccessToken)
             )
         case "error":
             return .failed(reason: dto.error ?? "unknown")
@@ -102,14 +110,9 @@ private struct CreateSessionDTO: Decodable {
 
 private struct SessionStatusDTO: Decodable {
     let status: String
-    let account: AccountDTO?
+    let authAccessToken: String?
     let a8cAccessToken: String?
     let error: String?
-}
-
-private struct AccountDTO: Decodable {
-    let displayName: String?
-    let avatarUrl: String?
 }
 
 private extension JSONDecoder {
