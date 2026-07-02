@@ -11,8 +11,15 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/** The persisted session: the signed-in account plus the optional a8c.tv token. */
-data class StoredSession(val account: Account, val token: String?)
+/**
+ * The persisted session: the signed-in account, the identity token, and the
+ * optional a8c.tv token.
+ */
+data class StoredSession(
+    val account: Account,
+    val authToken: String,
+    val a8cToken: String?,
+)
 
 private val Context.sessionDataStore by preferencesDataStore(name = "session")
 
@@ -29,7 +36,7 @@ class SessionStore(private val context: Context) {
         val raw = context.sessionDataStore.data.map { it[key] }.first() ?: return null
         return try {
             val dto = json.decodeFromString<StoredSessionDto>(raw)
-            StoredSession(Account(dto.displayName, dto.avatarUrl), dto.token)
+            StoredSession(Account(dto.displayName, dto.avatarUrl), dto.authToken, dto.a8cToken)
         } catch (_: Exception) {
             null // pre-update or corrupt value → stay signed out
         }
@@ -39,7 +46,8 @@ class SessionStore(private val context: Context) {
         val dto = StoredSessionDto(
             displayName = session.account.displayName,
             avatarUrl = session.account.avatarUrl,
-            token = session.token,
+            authToken = session.authToken,
+            a8cToken = session.a8cToken,
         )
         context.sessionDataStore.edit { it[key] = json.encodeToString(StoredSessionDto.serializer(), dto) }
     }
@@ -52,6 +60,7 @@ class SessionStore(private val context: Context) {
     private data class StoredSessionDto(
         @SerialName("display_name") val displayName: String,
         @SerialName("avatar_url") val avatarUrl: String?,
-        val token: String?,
+        @SerialName("auth_token") val authToken: String,
+        @SerialName("a8c_token") val a8cToken: String?,
     )
 }

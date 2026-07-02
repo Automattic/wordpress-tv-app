@@ -16,9 +16,10 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // Broker location — mirrors the iOS app's `BrokerBaseURL` Info.plist
-        // default. Configured once here; the pairing flow reads it via BuildConfig.
-        buildConfigField("String", "BROKER_BASE_URL", "\"https://wordpresstv-broker.fly.dev\"")
+        // Broker location — the /pairing routes on wordpress.tv (wpcom), mirroring
+        // the iOS app's `BrokerBaseURL` Info.plist default. Configured once here;
+        // the pairing flow reads it via BuildConfig.
+        buildConfigField("String", "BROKER_BASE_URL", "\"https://wordpress.tv/pairing\"")
     }
 
     buildTypes {

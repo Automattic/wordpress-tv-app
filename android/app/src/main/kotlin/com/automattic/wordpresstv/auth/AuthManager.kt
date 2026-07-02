@@ -12,11 +12,13 @@ import kotlinx.coroutines.launch
 /**
  * Owns the WordPress.com sign-in state for the whole app.
  *
- * Everything it needs comes from the broker's pairing result: the account (name
- * + Gravatar) and — only for Automatticians — the narrow a8c.tv token. A non-a12s
- * is signed in with `token == null`, so [isAuthorizedForA8C] is false and a8c.tv
- * never appears. The session is persisted in DataStore, so a cold launch restores
- * it with no network. Mirrors the Apple `AuthManager`.
+ * Pairing hands back two tokens: the identity (`scope=auth`) token, which we
+ * trade for the account (name + Gravatar) at `/me`, and — only for Automatticians
+ * — the narrow a8c.tv token. So the access decision is still the broker's (a
+ * non-a12s is signed in with `token == null`, so [isAuthorizedForA8C] is false and
+ * a8c.tv never appears), but the profile is now resolved app-side. The session
+ * (account + both tokens) is persisted in DataStore, so a cold launch restores it
+ * with no network. Mirrors the Apple `AuthManager`.
  *
  * State is held in Compose [mutableStateOf] so the UI recomposes on sign-in/out.
  */
@@ -24,10 +26,15 @@ class AuthManager(
     private val store: SessionStore,
     val broker: BrokerClient,
     private val scope: CoroutineScope,
+    private val accounts: WPComAccountService = WPComAccountService(),
 ) : AuthTokenProvider {
 
     /** The signed-in user (name + avatar). `null` ⇒ signed out. */
     var account by mutableStateOf<Account?>(null)
+        private set
+
+    /** The identity (`scope=auth`) token — resolves the account at `/me`. */
+    var authToken by mutableStateOf<String?>(null)
         private set
 
     /** The narrow a8c.tv access token. `null` for a signed-in non-a12s. */
@@ -47,25 +54,44 @@ class AuthManager(
             // Don't clobber a sign-in that raced ahead of the disk read.
             if (account == null) {
                 account = stored.account
-                token = stored.token
+                authToken = stored.authToken
+                token = stored.a8cToken
             }
         }
     }
 
-    /** Apply a completed pairing: show the avatar, keep the a8c token, persist. */
+    /**
+     * Apply a completed pairing: keep both tokens and sign in immediately with a
+     * placeholder, then resolve the real account from `/me` in the background.
+     * Pairing never blocks on the network, and a `/me` blip just leaves the
+     * placeholder — a valid pairing still lands (the avatar fills in when it
+     * arrives).
+     */
     fun signIn(result: BrokerClient.PairingResult) {
-        val name = result.displayName?.takeIf { it.isNotEmpty() } ?: "WordPress.com"
-        account = Account(displayName = name, avatarUrl = result.avatarUrl)
+        authToken = result.authToken
         token = result.a8cToken
-        val snapshot = StoredSession(account!!, token)
-        scope.launch { store.write(snapshot) }
+        account = Account(displayName = "WordPress.com", avatarUrl = null)
+        persist()
+        scope.launch {
+            val resolved = accounts.fetchAccount(result.authToken) ?: return@launch
+            account = resolved
+            persist()
+        }
     }
 
     /** Clear everything (explicit log out, or after a rejected a8c token). */
     fun signOut() {
         account = null
+        authToken = null
         token = null
         scope.launch { store.clear() }
+    }
+
+    private fun persist() {
+        val account = account ?: return
+        val authToken = authToken ?: return
+        val snapshot = StoredSession(account, authToken, token)
+        scope.launch { store.write(snapshot) }
     }
 
     override suspend fun accessToken(source: ContentSource): String? {

@@ -54,8 +54,8 @@ via Device Manager → TV). Requires JDK 17+ and the Android SDK (`ANDROID_HOME`
 
 ### Broker location
 
-The QR sign-in talks to the pairing broker. The default is the deployed broker
-(`https://wordpresstv-broker.fly.dev`), set as `BROKER_BASE_URL` in
+The QR sign-in talks to the pairing broker. The default is the `/pairing` routes
+on wordpress.tv (`https://wordpress.tv/pairing`), set as `BROKER_BASE_URL` in
 [`app/build.gradle.kts`](app/build.gradle.kts) — mirrors the iOS `BrokerBaseURL`
 default. Point it at a local tunnel to develop against a broker on your machine
 (see [`../broker/README.md`](../broker/README.md)).

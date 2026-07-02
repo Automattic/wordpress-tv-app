@@ -16,8 +16,11 @@ import okhttp3.RequestBody.Companion.toRequestBody
  *
  * 1. [createSession] → `POST /session` to start a pairing session and get the
  *    `qr_url` to render plus a `poll_secret` only this TV holds.
- * 2. [poll] → `GET /session/{id}` (with `X-Poll-Secret`) until the token arrives.
+ * 2. [poll] → `GET /session/{id}` (with `X-Poll-Secret`) until the tokens arrive.
  *
+ * On success the broker hands back the WP.com access tokens themselves (not
+ * denormalized profile fields): the identity token that the app trades for the
+ * account at `/me`, plus — for Automatticians — the a8c.tv content token.
  * Mirrors the Apple `BrokerClient`.
  */
 class BrokerClient(
@@ -38,13 +41,15 @@ class BrokerClient(
     )
 
     /**
-     * What pairing produced: the signed-in user (for the avatar), plus the narrow
-     * a8c.tv token — `null` for a non-Automattician, who is signed in but only
-     * ever sees public WordPress.tv.
+     * What pairing produced: the identity (`scope=auth`) token — which the app
+     * trades for the account (name + avatar) at `/me` — plus the narrow a8c.tv
+     * token, `null` for a non-Automattician who is signed in but only ever sees
+     * public WordPress.tv.
      */
     data class PairingResult(
-        val displayName: String?,
-        val avatarUrl: String?,
+        /** Identity token (`scope=auth`): identity-only; used to call `/me`. */
+        val authToken: String,
+        /** a8c.tv token (`scope=posts videos`); `null` for a non-Automattician. */
         val a8cToken: String?,
     )
 
@@ -82,13 +87,13 @@ class BrokerClient(
             val dto = json.decodeFromString<SessionStatusDto>(body)
             when (dto.status) {
                 "pending" -> PollResult.Pending
-                "authorized" -> PollResult.Authorized(
-                    PairingResult(
-                        displayName = dto.account?.displayName,
-                        avatarUrl = dto.account?.avatarUrl,
-                        a8cToken = dto.a8cAccessToken,
-                    ),
-                )
+                "authorized" -> {
+                    // On success the broker always returns the identity token;
+                    // without it we can't resolve the account, so treat its
+                    // absence as invalid.
+                    val authToken = dto.authAccessToken ?: throw BrokerException.InvalidResponse
+                    PollResult.Authorized(PairingResult(authToken, dto.a8cAccessToken))
+                }
                 "error" -> PollResult.Failed(dto.error ?: "unknown")
                 else -> throw BrokerException.InvalidResponse
             }
@@ -108,15 +113,9 @@ class BrokerClient(
     @Serializable
     private data class SessionStatusDto(
         val status: String,
-        val account: AccountDto? = null,
+        @SerialName("auth_access_token") val authAccessToken: String? = null,
         @SerialName("a8c_access_token") val a8cAccessToken: String? = null,
         val error: String? = null,
-    )
-
-    @Serializable
-    private data class AccountDto(
-        @SerialName("display_name") val displayName: String? = null,
-        @SerialName("avatar_url") val avatarUrl: String? = null,
     )
 }
 
