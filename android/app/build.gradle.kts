@@ -22,6 +22,24 @@ android {
         buildConfigField("String", "BROKER_BASE_URL", "\"https://wordpress.tv/pairing\"")
     }
 
+    // Sign the release when the upload key is present: the keystore at
+    // app/wordpress-tv-upload.jks plus UPLOAD_KEYSTORE_PASSWORD in the env
+    // (alias `upload`). Absent either, the release stays unsigned.
+    val uploadKeystore = file("wordpress-tv-upload.jks")
+    val uploadKeystorePassword = System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+    val canSignRelease = uploadKeystore.exists() && uploadKeystorePassword != null
+
+    signingConfigs {
+        if (canSignRelease) {
+            create("release") {
+                storeFile = uploadKeystore
+                storePassword = uploadKeystorePassword
+                keyAlias = "upload"
+                keyPassword = uploadKeystorePassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -29,6 +47,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            if (canSignRelease) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

@@ -53,3 +53,15 @@ steps:
         command: ".buildkite/commands/android/build-and-test.sh"
         agents:
           queue: android
+
+      # Build a signed release APK on trunk and keep it as a Buildkite artifact
+      # (grab it from the build's Artifacts tab — e.g. to upload to Play). Needs
+      # $CI_TOOLKIT to provision the upload-key secrets (UPLOAD_KEYSTORE_*).
+      - label: "📦 Release APK"
+        key: "android-release-apk"
+        command: ".buildkite/commands/android/build-and-upload-release.sh"
+        agents:
+          queue: android
+        plugins: [$CI_TOOLKIT]
+        depends_on: "android-build-and-test"
+        branches: "trunk"
