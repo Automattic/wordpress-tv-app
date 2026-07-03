@@ -10,8 +10,12 @@
 		155534F23D495554CB277743 /* WordPressTVApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF480493B2914C5DA1605169 /* WordPressTVApp.swift */; };
 		317F835290FAA9620824580D /* PlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94B8421D7A23A81CF5265D83 /* PlayerView.swift */; };
 		632703E90224A54AEEEA26E9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C044A9DC67C475BBCDB8DB9C /* Assets.xcassets */; };
-		64DF0D516F5C8554B53AC943 /* LatestView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1903FF375C7E486182DDFCA1 /* LatestView.swift */; };
-		7E87F08BF3EAC0D6B856C146 /* LatestViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE5E6D6BCE03AD29761AD7D4 /* LatestViewModel.swift */; };
+		AA0300000000000000000001 /* Catalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0300000000000000000101 /* Catalog.swift */; };
+		AA0300000000000000000002 /* WatchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0300000000000000000102 /* WatchStore.swift */; };
+		AA0300000000000000000003 /* Cards.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0300000000000000000103 /* Cards.swift */; };
+		AA0300000000000000000004 /* VideoFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0300000000000000000104 /* VideoFeed.swift */; };
+		AA0300000000000000000005 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0300000000000000000105 /* HomeView.swift */; };
+		AA0300000000000000000006 /* SearchScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0300000000000000000106 /* SearchScreen.swift */; };
 		7F572CA8414901993AFF7739 /* WordPressTVCore in Frameworks */ = {isa = PBXBuildFile; productRef = 3AB50DF763CE521114B5BE11 /* WordPressTVCore */; };
 		AA01000000000000000000F2 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA01000000000000000000F1 /* SplashView.swift */; };
 		AA01000000000000000000F4 /* Intro.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = AA01000000000000000000F3 /* Intro.mp4 */; };
@@ -25,8 +29,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		1903FF375C7E486182DDFCA1 /* LatestView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatestView.swift; sourceTree = "<group>"; };
 		46C2FA818EA06F4891C1C79C /* WordPressTV.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = WordPressTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0300000000000000000101 /* Catalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Catalog.swift; sourceTree = "<group>"; };
+		AA0300000000000000000102 /* WatchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStore.swift; sourceTree = "<group>"; };
+		AA0300000000000000000103 /* Cards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cards.swift; sourceTree = "<group>"; };
+		AA0300000000000000000104 /* VideoFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoFeed.swift; sourceTree = "<group>"; };
+		AA0300000000000000000105 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		AA0300000000000000000106 /* SearchScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchScreen.swift; sourceTree = "<group>"; };
 		94B8421D7A23A81CF5265D83 /* PlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerView.swift; sourceTree = "<group>"; };
 		AA01000000000000000000F1 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		AA01000000000000000000F3 /* Intro.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = Intro.mp4; sourceTree = "<group>"; };
@@ -38,7 +47,6 @@
 		AA0200000000000000000106 /* ContentRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentRootView.swift; sourceTree = "<group>"; };
 		AA0200000000000000000107 /* WPComAccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WPComAccountService.swift; sourceTree = "<group>"; };
 		A7220CD30B7E75C7FBF19B5C /* WordPressTVCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WordPressTVCore; path = WordPressTVCore; sourceTree = SOURCE_ROOT; };
-		BE5E6D6BCE03AD29761AD7D4 /* LatestViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatestViewModel.swift; sourceTree = "<group>"; };
 		C044A9DC67C475BBCDB8DB9C /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DF480493B2914C5DA1605169 /* WordPressTVApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordPressTVApp.swift; sourceTree = "<group>"; };
 		F8A8135B975D401A33952531 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -108,7 +116,11 @@
 				F8A8135B975D401A33952531 /* Info.plist */,
 				C216F8E2A40B0052A8CC1D9B /* App */,
 				AA0200000000000000000202 /* Root */,
-				73DD203C082B5E424697687E /* Latest */,
+				AA0300000000000000000204 /* Home */,
+				AA0300000000000000000201 /* Catalog */,
+				AA0300000000000000000203 /* Shared */,
+				AA0300000000000000000205 /* Search */,
+				AA0300000000000000000202 /* ContinueWatching */,
 				102F63C9755C8C0047D18298 /* Player */,
 				AA0200000000000000000201 /* Auth */,
 				AA01000000000000000000F5 /* Splash */,
@@ -126,13 +138,45 @@
 			);
 			sourceTree = "<group>";
 		};
-		73DD203C082B5E424697687E /* Latest */ = {
+		AA0300000000000000000201 /* Catalog */ = {
 			isa = PBXGroup;
 			children = (
-				1903FF375C7E486182DDFCA1 /* LatestView.swift */,
-				BE5E6D6BCE03AD29761AD7D4 /* LatestViewModel.swift */,
+				AA0300000000000000000101 /* Catalog.swift */,
 			);
-			path = Latest;
+			path = Catalog;
+			sourceTree = "<group>";
+		};
+		AA0300000000000000000202 /* ContinueWatching */ = {
+			isa = PBXGroup;
+			children = (
+				AA0300000000000000000102 /* WatchStore.swift */,
+			);
+			path = ContinueWatching;
+			sourceTree = "<group>";
+		};
+		AA0300000000000000000203 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				AA0300000000000000000103 /* Cards.swift */,
+				AA0300000000000000000104 /* VideoFeed.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		AA0300000000000000000204 /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				AA0300000000000000000105 /* HomeView.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		AA0300000000000000000205 /* Search */ = {
+			isa = PBXGroup;
+			children = (
+				AA0300000000000000000106 /* SearchScreen.swift */,
+			);
+			path = Search;
 			sourceTree = "<group>";
 		};
 		BCC45B68B89EAD345E289E1E /* Products */ = {
@@ -227,8 +271,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				64DF0D516F5C8554B53AC943 /* LatestView.swift in Sources */,
-				7E87F08BF3EAC0D6B856C146 /* LatestViewModel.swift in Sources */,
+				AA0300000000000000000001 /* Catalog.swift in Sources */,
+				AA0300000000000000000002 /* WatchStore.swift in Sources */,
+				AA0300000000000000000003 /* Cards.swift in Sources */,
+				AA0300000000000000000004 /* VideoFeed.swift in Sources */,
+				AA0300000000000000000005 /* HomeView.swift in Sources */,
+				AA0300000000000000000006 /* SearchScreen.swift in Sources */,
 				317F835290FAA9620824580D /* PlayerView.swift in Sources */,
 				AA01000000000000000000F2 /* SplashView.swift in Sources */,
 				155534F23D495554CB277743 /* WordPressTVApp.swift in Sources */,

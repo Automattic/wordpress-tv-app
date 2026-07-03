@@ -8,6 +8,8 @@ struct WordPressTVApp: App {
     // private source. wordpress.tv stays public/no-auth.
     private let auth: AuthManager
     private let repository: ContentRepository
+    /// Local Continue Watching store (per-device resume points).
+    private let store: WatchProgressStore
 
     /// Splash plays once per cold launch, then hands off to the content grid.
     @State private var showSplash = true
@@ -16,6 +18,7 @@ struct WordPressTVApp: App {
         let auth = AuthManager(broker: BrokerClient(baseURL: Self.brokerBaseURL))
         self.auth = auth
         self.repository = WPComContentRepository(authProvider: auth)
+        self.store = WatchProgressStore()
     }
 
     var body: some Scene {
@@ -23,7 +26,7 @@ struct WordPressTVApp: App {
             if showSplash {
                 SplashView { showSplash = false }
             } else {
-                ContentRootView(repository: repository, auth: auth)
+                ContentRootView(repository: repository, auth: auth, store: store)
             }
         }
     }
