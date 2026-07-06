@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.automattic.wordpresstv.auth.AuthManager
 import com.automattic.wordpresstv.auth.BrokerClient
 import com.automattic.wordpresstv.auth.SessionStore
+import com.automattic.wordpresstv.continuewatching.WatchProgressStore
 import com.automattic.wordpresstv.root.ContentRootScreen
 import com.automattic.wordpresstv.splash.SplashScreen
 import com.automattic.wordpresstv.core.data.WpComContentRepository
@@ -35,12 +36,14 @@ fun WordPressTvApp() {
         )
     }
     val repository = remember { WpComContentRepository(authProvider = auth) }
+    // Local Continue Watching store (per-device resume points).
+    val store = remember { WatchProgressStore(context.applicationContext) }
 
     var showSplash by rememberSaveable { mutableStateOf(true) }
 
     if (showSplash) {
         SplashScreen(onFinished = { showSplash = false })
     } else {
-        ContentRootScreen(repository = repository, auth = auth)
+        ContentRootScreen(repository = repository, auth = auth, store = store)
     }
 }

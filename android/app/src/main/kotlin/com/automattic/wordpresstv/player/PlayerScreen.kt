@@ -50,18 +50,34 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.automattic.wordpresstv.continuewatching.WatchProgressStore
 import com.automattic.wordpresstv.core.domain.PlaybackAsset
+import com.automattic.wordpresstv.core.domain.Video
 import kotlinx.coroutines.delay
 import androidx.tv.material3.Text
 
 private const val SEEK_STEP_MS = 10_000L
 private const val AUTO_HIDE_MS = 4_000L
+private const val PROGRESS_SAMPLE_MS = 5_000L
+
+/**
+ * Everything the player needs for one presentation: the resolved asset, the
+ * [Video] it came from (so progress can be recorded), and where to resume.
+ * Mirrors the Apple `PlaybackRequest`.
+ */
+data class PlaybackRequest(
+    val asset: PlaybackAsset,
+    val video: Video,
+    val resumeAtMs: Long,
+)
 
 /**
  * Full-screen player with **custom Compose-for-TV controls** (the stock Media3
  * `PlayerView` controller is phone-oriented and looks dated on a 10-foot screen).
- * `:core` resolved the [PlaybackAsset.url]; ExoPlayer plays it, and a Compose
- * overlay draws the transport: title, big play/pause, a scrubber, and times.
+ * `:core` resolved the [PlaybackAsset.url]; ExoPlayer plays it, resumes from the
+ * saved position, and reports progress back to the [WatchProgressStore] so
+ * Continue Watching stays current. A Compose overlay draws the transport: title,
+ * big play/pause, a scrubber, and times.
  *
  * One focus target (the whole surface). When the controls are showing:
  * Center/Enter toggles play-pause, Left/Right seek ∓10s. Any key wakes the
@@ -69,13 +85,17 @@ private const val AUTO_HIDE_MS = 4_000L
  */
 @OptIn(UnstableApi::class)
 @Composable
-fun PlayerScreen(asset: PlaybackAsset, onClose: () -> Unit) {
+fun PlayerScreen(request: PlaybackRequest, store: WatchProgressStore, onClose: () -> Unit) {
     val context = LocalContext.current
+    val asset = request.asset
 
     val player = remember(asset.url) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(asset.url))
             prepare()
+            // Resume from the saved position (ExoPlayer applies the seek once the
+            // media loads).
+            if (request.resumeAtMs > 0) seekTo(request.resumeAtMs)
             playWhenReady = true
         }
     }
@@ -103,6 +123,13 @@ fun PlayerScreen(asset: PlaybackAsset, onClose: () -> Unit) {
         position = target
     }
 
+    // Record the resume point into Continue Watching. The store guards the
+    // "barely started" and "essentially finished" cases itself.
+    fun recordProgress() {
+        val dur = player.duration
+        if (dur > 0) store.record(request.video, player.currentPosition, dur)
+    }
+
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
@@ -112,8 +139,19 @@ fun PlayerScreen(asset: PlaybackAsset, onClose: () -> Unit) {
         }
         player.addListener(listener)
         onDispose {
+            // Final capture on a clean exit; the periodic sampler covers a crash.
+            recordProgress()
             player.removeListener(listener)
             player.release()
+        }
+    }
+
+    // Sample progress periodically so Continue Watching survives a hard exit, not
+    // just a clean dismiss.
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(PROGRESS_SAMPLE_MS)
+            recordProgress()
         }
     }
 
@@ -178,7 +216,7 @@ fun PlayerScreen(asset: PlaybackAsset, onClose: () -> Unit) {
 
         if (controlsVisible) {
             Controls(
-                title = asset.title,
+                title = request.asset.title,
                 isPlaying = isPlaying,
                 position = position,
                 duration = duration,

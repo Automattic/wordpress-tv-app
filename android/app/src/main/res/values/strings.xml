@@ -7,11 +7,22 @@
     <string name="sign_in">Sign in</string>
     <string name="log_out">Log out</string>
     <string name="cancel">Cancel</string>
+    <string name="home">Home</string>
 
-    <!-- Latest grid -->
+    <!-- Home rails -->
+    <string name="continue_watching">Continue Watching</string>
+    <string name="flagship_wordcamps">Flagship WordCamps</string>
+    <string name="latest">Latest</string>
+
+    <!-- Search -->
+    <string name="search_hint">Search talks, speakers, and topics</string>
+    <string name="search_prompt">Search WordPress.tv for talks, speakers, and topics.</string>
+
+    <!-- Video grids -->
     <string name="retry">Retry</string>
     <string name="videos_load_error">Couldn\'t load videos. Please try again.</string>
     <string name="no_videos">No videos yet.</string>
+    <string name="no_videos_here">No videos here yet.</string>
     <string name="session_expired">Your session expired. Sign in again to continue.</string>
 
     <!-- Pairing / sign-in -->
