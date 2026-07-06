@@ -8,9 +8,10 @@ import com.automattic.wordpresstv.core.domain.Video
 /**
  * The seam between the data layer (`:core`) and the UI (`:app`).
  *
- * It declares the **full** content contract; the scaffold implements three
- * methods ([listLatest], [resolvePlayback], [posterUrl]) and stubs the rest with
- * [RepositoryException.NotImplemented] until their slices land. The app codes
+ * It declares the **full** content contract. Everything the browse experience
+ * needs is implemented ([listLatest], [listByCategory], [search],
+ * [resolvePlayback], [posterUrl]); [listCategories] stays stubbed with
+ * [RepositoryException.NotImplemented] until a slice needs it. The app codes
  * against this interface, never against a concrete implementation.
  */
 interface ContentRepository {
@@ -28,11 +29,15 @@ interface ContentRepository {
      */
     suspend fun posterUrl(source: ContentSource, video: Video): String?
 
+    /** Videos in [category] for [source]. [page] is 1-based. */
+    suspend fun listByCategory(source: ContentSource, category: CategoryRef, page: Int): List<Video>
+
+    /** Relevance-ranked search over [source]. [page] is 1-based; blank [query] yields nothing. */
+    suspend fun search(source: ContentSource, query: String, page: Int): List<Video>
+
     // Declared, not yet implemented (later slices).
 
     suspend fun listCategories(source: ContentSource): List<CategoryRef>
-    suspend fun listByCategory(source: ContentSource, category: CategoryRef, page: Int): List<Video>
-    suspend fun search(source: ContentSource, query: String, page: Int): List<Video>
 }
 
 /** Errors surfaced across the repository seam. */

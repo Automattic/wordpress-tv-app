@@ -34,16 +34,8 @@ class WpComContentRepository(
 
     // --- Implemented ---
 
-    override suspend fun listLatest(source: ContentSource, page: Int): List<Video> {
-        val url = apiBase.newBuilder()
-            .addPathSegments("sites/${source.wpcomSite}/posts")
-            .addQueryParameter("number", pageSize.toString())
-            .addQueryParameter("page", maxOf(1, page).toString())
-            .addQueryParameter("order_by", "date")
-            .build()
-        val dto = decode<PostsResponseDto>(getBody(url.toString(), tokenFor(source)))
-        return Mapping.videos(dto, source.id)
-    }
+    override suspend fun listLatest(source: ContentSource, page: Int): List<Video> =
+        listPosts(source, page)
 
     override suspend fun resolvePlayback(source: ContentSource, video: Video): PlaybackAsset {
         val token = tokenFor(source)
@@ -86,16 +78,44 @@ class WpComContentRepository(
         }
     }
 
+    override suspend fun listByCategory(source: ContentSource, category: CategoryRef, page: Int): List<Video> =
+        listPosts(source, page, extraQuery = mapOf("category" to category.slug))
+
+    override suspend fun search(source: ContentSource, query: String, page: Int): List<Video> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return emptyList()
+        // The search endpoint ranks by relevance; don't force date ordering.
+        return listPosts(source, page, orderByDate = false, extraQuery = mapOf("search" to trimmed))
+    }
+
     // --- Stubbed (later slices) ---
 
     override suspend fun listCategories(source: ContentSource) =
         throw RepositoryException.NotImplemented
 
-    override suspend fun listByCategory(source: ContentSource, category: CategoryRef, page: Int) =
-        throw RepositoryException.NotImplemented
+    // --- Posts ---
 
-    override suspend fun search(source: ContentSource, query: String, page: Int) =
-        throw RepositoryException.NotImplemented
+    /**
+     * Fetch one page of the posts feed, mapped to playable videos. Shared by
+     * [listLatest], [listByCategory], and [search] — they differ only in the
+     * extra query items (a `category` slug, a `search` term, or nothing).
+     */
+    private suspend fun listPosts(
+        source: ContentSource,
+        page: Int,
+        orderByDate: Boolean = true,
+        extraQuery: Map<String, String> = emptyMap(),
+    ): List<Video> {
+        val builder = apiBase.newBuilder()
+            .addPathSegments("sites/${source.wpcomSite}/posts")
+            .addQueryParameter("number", pageSize.toString())
+            .addQueryParameter("page", maxOf(1, page).toString())
+        if (orderByDate) builder.addQueryParameter("order_by", "date")
+        extraQuery.forEach { (name, value) -> builder.addQueryParameter(name, value) }
+        val url = builder.build()
+        val dto = decode<PostsResponseDto>(getBody(url.toString(), tokenFor(source)))
+        return Mapping.videos(dto, source.id)
+    }
 
     // --- Auth helpers ---
 

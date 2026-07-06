@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,41 +35,91 @@ import coil.compose.AsyncImage
 import com.automattic.wordpresstv.R
 import com.automattic.wordpresstv.auth.AuthManager
 import com.automattic.wordpresstv.auth.PairingScreen
+import com.automattic.wordpresstv.catalog.Catalog
+import com.automattic.wordpresstv.catalog.FlagshipCamp
+import com.automattic.wordpresstv.catalog.NavCategory
+import com.automattic.wordpresstv.continuewatching.WatchProgressStore
 import com.automattic.wordpresstv.core.Sources
 import com.automattic.wordpresstv.core.data.ContentRepository
 import com.automattic.wordpresstv.core.domain.Account
 import com.automattic.wordpresstv.core.domain.ContentSource
-import com.automattic.wordpresstv.core.domain.PlaybackAsset
-import com.automattic.wordpresstv.latest.LatestScreen
+import com.automattic.wordpresstv.core.domain.Video
+import com.automattic.wordpresstv.feed.VideoGrid
+import com.automattic.wordpresstv.feed.VideoQuery
+import com.automattic.wordpresstv.home.HomeScreen
+import com.automattic.wordpresstv.player.PlaybackRequest
 import com.automattic.wordpresstv.player.PlayerScreen
+import com.automattic.wordpresstv.search.SearchScreen
+import com.automattic.wordpresstv.ui.WordPressMark
 import com.automattic.wordpresstv.ui.theme.BrandBlue
+import kotlinx.coroutines.launch
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 
 /**
- * The app's home after the splash. Shows the public WordPress.tv grid out of the
- * box — no account needed — with a "Sign in" affordance in the top bar.
+ * The app shell: a persistent top nav (the design's pill bar) over a body that
+ * swaps between the railed Home, a category grid, flagship-camp drill-ins, and
+ * search. Playback is hoisted here so any screen can request it through one
+ * [play] path — which also wires the resume position and progress recording.
  *
- * Signing in is plain WordPress.com OAuth (the QR pairing flow). Once a token
- * lands, an Automattician gets the private a8c.tv source revealed and selected;
- * anyone else stays on WordPress.tv, signed in, with no a8c.tv entry point shown.
- * Mirrors the Apple `ContentRootView`.
+ * WordPress.tv is public and drives the whole visible nav. The private a8c.tv
+ * source stays available to signed-in Automatticians as an extra trailing tab,
+ * preserving the employee flow without intruding on the public design. Mirrors
+ * the Apple `ContentRootView`.
  */
 @Composable
-fun ContentRootScreen(repository: ContentRepository, auth: AuthManager) {
-    var selected by remember { mutableStateOf(Sources.wordpressTV) }
+fun ContentRootScreen(repository: ContentRepository, auth: AuthManager, store: WatchProgressStore) {
+    var selected by remember { mutableStateOf<Section>(Section.Home) }
     var showPairing by remember { mutableStateOf(false) }
     var showAccountDialog by remember { mutableStateOf(false) }
-    // Hoisted here (not inside LatestScreen) so the player overlays the whole
-    // screen — source bar included — like the tvOS `fullScreenCover`.
-    var playing by remember { mutableStateOf<PlaybackAsset?>(null) }
+    // Hoisted here (not inside a screen) so the player overlays the whole screen —
+    // nav bar included — like the tvOS `fullScreenCover`, and every screen plays
+    // through one path.
+    var playing by remember { mutableStateOf<PlaybackRequest?>(null) }
+    val scope = rememberCoroutineScope()
+
+    /**
+     * Resolve a tapped video to a playable asset, wire its resume point, and
+     * present the player. Best-effort: if resolution fails the player just doesn't
+     * open.
+     */
+    fun play(video: Video, source: ContentSource) {
+        scope.launch {
+            val asset = runCatching { repository.resolvePlayback(source, video) }.getOrNull() ?: return@launch
+            val resumeMs = store.progress(video.videoGuid)?.positionMs ?: 0L
+            playing = PlaybackRequest(asset = asset, video = video, resumeAtMs = resumeMs)
+        }
+    }
+
+    /**
+     * A flagship card's cover: the newest video's poster in that camp's category.
+     * Best-effort — the card keeps its brand gradient if this fails.
+     */
+    suspend fun campCover(camp: FlagshipCamp): String? =
+        runCatching { repository.listByCategory(Sources.wordpressTV, camp.ref, 1).firstOrNull()?.posterUrl }.getOrNull()
+
+    fun routeToPairing() {
+        // A grid reported a 401/403 (an a8c.tv session expired) — clear the stale
+        // token and re-pair.
+        auth.signOut()
+        selected = Section.Home
+        showPairing = true
+    }
+
+    // Back returns to Home from any sub-section rather than exiting the app
+    // (the player and dialogs handle their own Back).
+    BackHandler(enabled = selected != Section.Home && playing == null && !showPairing && !showAccountDialog) {
+        selected = Section.Home
+    }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         Column(Modifier.fillMaxSize()) {
-            SourceBar(
+            NavBar(
                 selected = selected,
-                visibleSources = Sources.all.filter { it.auth == ContentSource.Auth.NONE || auth.isAuthorizedForA8C },
+                showA8c = auth.isAuthorizedForA8C,
                 isAuthenticated = auth.isAuthenticated,
                 account = auth.account,
                 onSelect = { selected = it },
@@ -76,31 +127,26 @@ fun ContentRootScreen(repository: ContentRepository, auth: AuthManager) {
                 onAccount = { showAccountDialog = true },
             )
 
-            // Recreate the grid when the source — or auth state — changes, so
-            // signing in/out triggers a fresh load. The weight lives on the
-            // wrapper Box (ColumnScope); `key {}` resets the screen's state.
+            // Recreate the body when the selection — or auth state — changes, so
+            // signing in/out reloads private content.
             Box(Modifier.weight(1f).fillMaxWidth()) {
-                key(selected.id, auth.isAuthenticated) {
-                    LatestScreen(
+                key(sectionKey(selected), auth.isAuthenticated) {
+                    Body(
+                        section = selected,
                         repository = repository,
-                        source = selected,
-                        onAuthRequired = {
-                            // A 401/403 surfaced (an a8c.tv session expired) —
-                            // clear the stale token and re-pair.
-                            auth.signOut()
-                            selected = Sources.wordpressTV
-                            showPairing = true
-                        },
-                        onPlay = { playing = it },
-                        modifier = Modifier.fillMaxSize(),
+                        store = store,
+                        onPlay = ::play,
+                        onOpenCamp = { selected = Section.Flagship(it) },
+                        resolveCover = ::campCover,
+                        onAuthRequired = ::routeToPairing,
                     )
                 }
             }
         }
 
-        // Full-screen player overlay (covers the source bar), dismissed with Back.
-        playing?.let { asset ->
-            PlayerScreen(asset = asset, onClose = { playing = null })
+        // Full-screen player overlay (covers the nav bar), dismissed with Back.
+        playing?.let { request ->
+            PlayerScreen(request = request, store = store, onClose = { playing = null })
         }
 
         if (showPairing) {
@@ -109,13 +155,13 @@ fun ContentRootScreen(repository: ContentRepository, auth: AuthManager) {
                 onAuthorized = { result ->
                     auth.signIn(result)
                     // Reveal and jump to a8c.tv only for an Automattician; everyone
-                    // else lands back on WordPress.tv, signed in.
-                    if (auth.isAuthorizedForA8C) selected = Sources.a8cTV
+                    // else lands back on Home, signed in.
+                    if (auth.isAuthorizedForA8C) selected = Section.A8c
                     showPairing = false
                 },
                 onCancel = {
                     showPairing = false
-                    if (!auth.isAuthorizedForA8C) selected = Sources.wordpressTV
+                    if (!auth.isAuthorizedForA8C) selected = Section.Home
                 },
             )
         }
@@ -126,7 +172,7 @@ fun ContentRootScreen(repository: ContentRepository, auth: AuthManager) {
                 onLogOut = {
                     showAccountDialog = false
                     auth.signOut()
-                    selected = Sources.wordpressTV
+                    selected = Section.Home
                 },
                 onDismiss = { showAccountDialog = false },
             )
@@ -134,13 +180,99 @@ fun ContentRootScreen(repository: ContentRepository, auth: AuthManager) {
     }
 }
 
+/** A destination in the top nav (plus the flagship drill-in, which no pill selects). */
+sealed interface Section {
+    data object Home : Section
+    data class Category(val category: NavCategory) : Section
+    data class Flagship(val camp: FlagshipCamp) : Section
+    data object Search : Section
+    data object A8c : Section
+}
+
+/** Stable string for `key(...)` — associated values make `Section` awkward to key directly. */
+private fun sectionKey(section: Section): String = when (section) {
+    Section.Home -> "home"
+    is Section.Category -> "cat-${section.category.slug}"
+    is Section.Flagship -> "camp-${section.camp.slug}"
+    Section.Search -> "search"
+    Section.A8c -> "a8c"
+}
+
 @Composable
-private fun SourceBar(
-    selected: ContentSource,
-    visibleSources: List<ContentSource>,
+private fun Body(
+    section: Section,
+    repository: ContentRepository,
+    store: WatchProgressStore,
+    onPlay: (Video, ContentSource) -> Unit,
+    onOpenCamp: (FlagshipCamp) -> Unit,
+    resolveCover: suspend (FlagshipCamp) -> String?,
+    onAuthRequired: () -> Unit,
+) {
+    when (section) {
+        Section.Home -> HomeScreen(
+            repository = repository,
+            source = Sources.wordpressTV,
+            store = store,
+            onPlay = onPlay,
+            onOpenCamp = onOpenCamp,
+            resolveCover = resolveCover,
+            onAuthRequired = onAuthRequired,
+        )
+
+        is Section.Category -> VideoGrid(
+            repository = repository,
+            source = Sources.wordpressTV,
+            query = VideoQuery.Category(section.category.ref),
+            onPlay = onPlay,
+            onAuthRequired = onAuthRequired,
+        )
+
+        is Section.Flagship -> Column(Modifier.fillMaxSize()) {
+            Text(
+                text = section.camp.title,
+                color = Color.White,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 56.dp, vertical = 16.dp),
+            )
+            VideoGrid(
+                repository = repository,
+                source = Sources.wordpressTV,
+                query = VideoQuery.Category(section.camp.ref),
+                onPlay = onPlay,
+                onAuthRequired = onAuthRequired,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Section.Search -> SearchScreen(
+            repository = repository,
+            source = Sources.wordpressTV,
+            onPlay = onPlay,
+        )
+
+        Section.A8c -> VideoGrid(
+            repository = repository,
+            source = Sources.a8cTV,
+            query = VideoQuery.Latest,
+            onPlay = onPlay,
+            onAuthRequired = onAuthRequired,
+        )
+    }
+}
+
+/**
+ * The design's top bar: the WordPress mark, one translucent capsule holding the
+ * section tabs and search, and the account control — laid out edge to edge with
+ * the capsule centered.
+ */
+@Composable
+private fun NavBar(
+    selected: Section,
+    showA8c: Boolean,
     isAuthenticated: Boolean,
     account: Account?,
-    onSelect: (ContentSource) -> Unit,
+    onSelect: (Section) -> Unit,
     onSignIn: () -> Unit,
     onAccount: () -> Unit,
 ) {
@@ -148,51 +280,102 @@ private fun SourceBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 56.dp)
-            .padding(top = 40.dp, bottom = 20.dp),
+            .padding(top = 32.dp, bottom = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        Text("WordPress TV", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+        WordPressMark(Modifier.size(44.dp))
+
         Box(Modifier.weight(1f))
 
-        visibleSources.forEach { source ->
-            SourcePill(source = source, isSelected = source.id == selected.id, onClick = { onSelect(source) })
-        }
+        NavCapsule(selected = selected, showA8c = showA8c, onSelect = onSelect)
+
+        Box(Modifier.weight(1f))
 
         if (isAuthenticated) {
-            Button(onClick = onAccount, colors = unselectedColors()) { Avatar(account) }
+            NavAvatarButton(account = account, onClick = onAccount)
         } else {
-            Button(onClick = onSignIn, colors = unselectedColors()) { Text(stringResource(R.string.sign_in)) }
+            NavTab(selected = false, onClick = onSignIn) { Text(stringResource(R.string.sign_in)) }
         }
     }
 }
 
+/**
+ * The single pill from the mock: text tabs (the selected one a solid blue pill)
+ * plus a trailing search glyph, all inside one translucent capsule.
+ */
 @Composable
-private fun SourcePill(source: ContentSource, isSelected: Boolean, onClick: () -> Unit) {
-    // A persistent brand-blue selected pill vs. a faint translucent one stays
-    // unambiguous wherever focus sits (the TV focus highlight brightens the
-    // focused pill, so a white "selected" tint would be indistinguishable).
-    Button(
+private fun NavCapsule(selected: Section, showA8c: Boolean, onSelect: (Section) -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.08f))
+            .padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        NavTab(selected = selected == Section.Home, onClick = { onSelect(Section.Home) }) {
+            Text(stringResource(R.string.home))
+        }
+        Catalog.categories.forEach { category ->
+            NavTab(
+                selected = selected == Section.Category(category),
+                onClick = { onSelect(Section.Category(category)) },
+            ) { Text(category.title) }
+        }
+        if (showA8c) {
+            NavTab(selected = selected == Section.A8c, onClick = { onSelect(Section.A8c) }) {
+                Text(Sources.a8cTV.displayName)
+            }
+        }
+        NavTab(selected = selected == Section.Search, onClick = { onSelect(Section.Search) }) {
+            com.automattic.wordpresstv.search.SearchIcon(Modifier.size(20.dp))
+        }
+    }
+}
+
+/**
+ * One tab inside the capsule: a rounded pill that is brand-blue when selected, a
+ * subtle translucent fill when focused, and transparent otherwise. The focus
+ * highlight is contained (no scale lift) so the capsule reads as one control.
+ */
+@Composable
+private fun NavTab(selected: Boolean, onClick: () -> Unit, content: @Composable () -> Unit) {
+    Surface(
         onClick = onClick,
-        colors = ButtonDefaults.colors(
-            containerColor = if (isSelected) BrandBlue else Color.White.copy(alpha = 0.16f),
-            contentColor = Color.White,
+        shape = ClickableSurfaceDefaults.shape(CircleShape),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (selected) BrandBlue else Color.Transparent,
+            focusedContainerColor = if (selected) BrandBlue else Color.White.copy(alpha = 0.22f),
+            pressedContainerColor = if (selected) BrandBlue else Color.White.copy(alpha = 0.22f),
+            contentColor = if (selected) Color.White else Color.White.copy(alpha = 0.62f),
+            focusedContentColor = Color.White,
+            pressedContentColor = Color.White,
         ),
     ) {
-        Text(source.displayName, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
+        Box(Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) { content() }
+    }
+}
+
+/** The Gravatar tab: a round, focusable control that opens the account dialog. */
+@Composable
+private fun NavAvatarButton(account: Account?, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = ClickableSurfaceDefaults.shape(CircleShape),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.Transparent,
+            focusedContainerColor = Color.White.copy(alpha = 0.16f),
+        ),
+    ) {
+        Avatar(account, Modifier.padding(4.dp))
     }
 }
 
 @Composable
-private fun unselectedColors() = ButtonDefaults.colors(
-    containerColor = Color.White.copy(alpha = 0.16f),
-    contentColor = Color.White,
-)
-
-@Composable
-private fun Avatar(account: Account?) {
+private fun Avatar(account: Account?, modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier.size(40.dp).clip(CircleShape).background(BrandBlue),
+        modifier = modifier.size(40.dp).clip(CircleShape).background(BrandBlue),
         contentAlignment = Alignment.Center,
     ) {
         val url = account?.avatarUrl
@@ -214,7 +397,7 @@ private fun AccountDialog(account: Account?, onLogOut: () -> Unit, onDismiss: ()
     BackHandler(onBack = onDismiss)
 
     // Move focus into the dialog so the D-pad can reach Log out / Cancel —
-    // otherwise focus stays on the grid behind it and the dialog is unreachable.
+    // otherwise focus stays on the body behind it and the dialog is unreachable.
     val logOutFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) {
         repeat(10) {
@@ -237,7 +420,13 @@ private fun AccountDialog(account: Account?, onLogOut: () -> Unit, onDismiss: ()
         ) {
             Text(account?.displayName ?: stringResource(R.string.account), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
             Button(onClick = onLogOut, modifier = Modifier.focusRequester(logOutFocus)) { Text(stringResource(R.string.log_out)) }
-            Button(onClick = onDismiss, colors = unselectedColors()) { Text(stringResource(R.string.cancel)) }
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.colors(
+                    containerColor = Color.White.copy(alpha = 0.16f),
+                    contentColor = Color.White,
+                ),
+            ) { Text(stringResource(R.string.cancel)) }
         }
     }
 }
