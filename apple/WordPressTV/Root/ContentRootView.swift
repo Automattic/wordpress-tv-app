@@ -216,12 +216,16 @@ struct ContentRootView: View {
                 Button("Cancel", role: .cancel) {}
             }
         } else {
+            // Sign-in relies on the QR pairing backend, which isn't ready yet, so
+            // the entry point is limited to debug builds until it ships.
+            #if DEBUG
             Button { showPairing = true } label: {
                 Label("Sign in", systemImage: "person.crop.circle")
             }
             .buttonStyle(CapsuleTabStyle(isFocused: isFocused, idleFill: .white.opacity(0.08)))
             .focused($focusedNav, equals: .account)
             .animation(.easeOut(duration: 0.15), value: focusedNav)
+            #endif
         }
     }
 

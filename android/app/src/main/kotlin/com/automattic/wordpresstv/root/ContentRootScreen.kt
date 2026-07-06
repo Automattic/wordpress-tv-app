@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.automattic.wordpresstv.BuildConfig
 import com.automattic.wordpresstv.R
 import com.automattic.wordpresstv.auth.AuthManager
 import com.automattic.wordpresstv.auth.PairingScreen
@@ -294,7 +295,9 @@ private fun NavBar(
 
         if (isAuthenticated) {
             NavAvatarButton(account = account, onClick = onAccount)
-        } else {
+        } else if (BuildConfig.DEBUG) {
+            // Sign-in relies on the QR pairing backend, which isn't ready yet, so
+            // the entry point is limited to debug builds until it ships.
             NavTab(selected = false, onClick = onSignIn) { Text(stringResource(R.string.sign_in)) }
         }
     }
