@@ -34,20 +34,7 @@ public final class WPComContentRepository: ContentRepository {
     // MARK: Implemented
 
     public func listLatest(source: ContentSource, page: Int) async throws -> [Video] {
-        guard var components = URLComponents(
-            url: Self.apiBase.appending(path: "sites/\(source.wpcomSite)/posts"),
-            resolvingAgainstBaseURL: false
-        ) else { throw RepositoryError.invalidURL }
-
-        components.queryItems = [
-            URLQueryItem(name: "number", value: String(pageSize)),
-            URLQueryItem(name: "page", value: String(max(1, page))),
-            URLQueryItem(name: "order_by", value: "date"),
-        ]
-        guard let url = components.url else { throw RepositoryError.invalidURL }
-
-        let dto: PostsResponseDTO = try await get(url, token: await token(for: source))
-        return Mapping.videos(from: dto, sourceID: source.id)
+        try await listPosts(source: source, page: page)
     }
 
     public func resolvePlayback(source: ContentSource, video: Video) async throws -> PlaybackAsset {
@@ -99,18 +86,60 @@ public final class WPComContentRepository: ContentRepository {
         }
     }
 
+    public func listByCategory(source: ContentSource, category: CategoryRef, page: Int) async throws -> [Video] {
+        try await listPosts(
+            source: source,
+            page: page,
+            extraQuery: [URLQueryItem(name: "category", value: category.slug)]
+        )
+    }
+
+    public func search(source: ContentSource, query: String, page: Int) async throws -> [Video] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        // The search endpoint ranks by relevance; don't force date ordering.
+        return try await listPosts(
+            source: source,
+            page: page,
+            orderByDate: false,
+            extraQuery: [URLQueryItem(name: "search", value: trimmed)]
+        )
+    }
+
     // MARK: Stubbed (later slices)
 
     public func listCategories(source: ContentSource) async throws -> [CategoryRef] {
         throw RepositoryError.notImplemented
     }
 
-    public func listByCategory(source: ContentSource, category: CategoryRef, page: Int) async throws -> [Video] {
-        throw RepositoryError.notImplemented
-    }
+    // MARK: Posts
 
-    public func search(source: ContentSource, query: String, page: Int) async throws -> [Video] {
-        throw RepositoryError.notImplemented
+    /// Fetch one page of the posts feed, mapped to playable videos. Shared by
+    /// `listLatest`, `listByCategory`, and `search` — they differ only in the
+    /// extra query items (a `category` slug, a `search` term, or nothing).
+    private func listPosts(
+        source: ContentSource,
+        page: Int,
+        orderByDate: Bool = true,
+        extraQuery: [URLQueryItem] = []
+    ) async throws -> [Video] {
+        guard var components = URLComponents(
+            url: Self.apiBase.appending(path: "sites/\(source.wpcomSite)/posts"),
+            resolvingAgainstBaseURL: false
+        ) else { throw RepositoryError.invalidURL }
+
+        var queryItems = [
+            URLQueryItem(name: "number", value: String(pageSize)),
+            URLQueryItem(name: "page", value: String(max(1, page))),
+        ]
+        if orderByDate {
+            queryItems.append(URLQueryItem(name: "order_by", value: "date"))
+        }
+        components.queryItems = queryItems + extraQuery
+        guard let url = components.url else { throw RepositoryError.invalidURL }
+
+        let dto: PostsResponseDTO = try await get(url, token: await token(for: source))
+        return Mapping.videos(from: dto, sourceID: source.id)
     }
 
     // MARK: Auth helpers
