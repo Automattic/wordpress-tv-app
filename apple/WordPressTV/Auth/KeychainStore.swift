@@ -3,8 +3,9 @@ import Security
 
 /// Tiny Keychain wrapper for the signed-in session blob.
 ///
-/// Device-only (`AfterFirstUnlock`, no iCloud sync) per the design: secure, and
-/// it survives tvOS evicting the app's data container — which `UserDefaults` and
+/// Device-only (`AfterFirstUnlockThisDeviceOnly`, not synchronizable) per the
+/// design: never backed up, migrated, or synced to iCloud Keychain, and it
+/// survives tvOS evicting the app's data container — which `UserDefaults` and
 /// files do not. One service/account, so write is an upsert. Owns the JSON
 /// (de)serialization, so callers store and load `Codable` values directly.
 ///
@@ -55,7 +56,8 @@ struct KeychainStore {
 
         var attributes = baseQuery
         attributes[kSecValueData as String] = data
-        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        // ThisDeviceOnly ⇒ never in a backup or migrated to another device.
+        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         SecItemAdd(attributes as CFDictionary, nil)
 
         #if DEBUG
@@ -83,12 +85,16 @@ struct KeychainStore {
     }
 
     private func debugFileWrite(_ data: Data) {
-        let url = debugFileURL
+        var url = debugFileURL
         try? FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
         try? data.write(to: url)
+        // Keep the plaintext mirror out of any backup, like the Keychain item.
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? url.setResourceValues(values)
     }
 
     private func debugFileRead<T: Decodable>(_ type: T.Type) -> T? {
