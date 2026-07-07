@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Keep the token-bearing stores on this device. allowBackup="false" already
+    disables cloud backup; device-to-device transfer isn't covered by it on
+    Android 12+, so exclude those stores here too. session.preferences_pb is also
+    Keystore-encrypted; continue_watching holds per-video a8c.tv tokens.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="datastore/session.preferences_pb" />
+        <exclude domain="sharedpref" path="continue_watching.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="datastore/session.preferences_pb" />
+        <exclude domain="sharedpref" path="continue_watching.xml" />
+    </device-transfer>
+</data-extraction-rules>
