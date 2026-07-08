@@ -1,6 +1,7 @@
 package com.automattic.wordpresstv.core.data
 
 import com.automattic.wordpresstv.core.domain.CategoryRef
+import com.automattic.wordpresstv.core.domain.ContentLanguage
 import com.automattic.wordpresstv.core.domain.ContentSource
 import com.automattic.wordpresstv.core.domain.PlaybackAsset
 import com.automattic.wordpresstv.core.domain.Video
@@ -22,18 +23,26 @@ interface ContentRepository {
     suspend fun resolvePlayback(source: ContentSource, video: Video): PlaybackAsset
 
     /**
-     * A ready-to-load poster URL for [video]. For a private source this appends
-     * the VideoPress `metadata_token` (the poster host gates on it just like
-     * playback); for a public source it's simply [Video.posterUrl]. Best-effort:
-     * returns `null` if a private poster can't be resolved.
+     * A ready-to-load poster URL for [video]. wp/v2 post rows do not carry
+     * VideoPress thumbnails, so the repository may resolve this from video-info.
+     * For a private source this appends the VideoPress `metadata_token`.
+     * Best-effort: returns `null` if a poster cannot be resolved.
      */
     suspend fun posterUrl(source: ContentSource, video: Video): String?
 
     /** Videos in [category] for [source]. [page] is 1-based. */
-    suspend fun listByCategory(source: ContentSource, category: CategoryRef, page: Int): List<Video>
+    suspend fun listByCategory(
+        source: ContentSource,
+        category: CategoryRef,
+        page: Int,
+        applyLanguageFilter: Boolean = true,
+    ): List<Video>
 
     /** Relevance-ranked search over [source]. [page] is 1-based; blank [query] yields nothing. */
     suspend fun search(source: ContentSource, query: String, page: Int): List<Video>
+
+    /** Available content languages for [source]. */
+    suspend fun listLanguages(source: ContentSource): List<ContentLanguage>
 
     // Declared, not yet implemented (later slices).
 

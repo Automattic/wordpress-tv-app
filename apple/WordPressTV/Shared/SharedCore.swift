@@ -3,6 +3,7 @@ import WordPressTVSharedCore
 
 private typealias SharedAccount = WordPressTVSharedCore.Account
 private typealias SharedCategoryRef = WordPressTVSharedCore.CategoryRef
+private typealias SharedContentLanguage = WordPressTVSharedCore.ContentLanguage
 private typealias SharedContentSource = WordPressTVSharedCore.ContentSource
 private typealias SharedPlaybackAsset = WordPressTVSharedCore.PlaybackAsset
 private typealias SharedRepository = WordPressTVSharedCore.WpComContentRepository
@@ -15,6 +16,12 @@ struct Account: Equatable, Sendable, Codable {
 
 struct CategoryRef: Equatable, Sendable {
     let id: String
+    let name: String
+    let slug: String
+}
+
+struct ContentLanguage: Identifiable, Equatable, Sendable {
+    let id: Int64
     let name: String
     let slug: String
 }
@@ -67,8 +74,25 @@ protocol ContentRepository: Sendable {
     func resolvePlayback(source: ContentSource, video: Video) async throws -> PlaybackAsset
     func posterURL(source: ContentSource, video: Video) async -> URL?
     func listCategories(source: ContentSource) async throws -> [CategoryRef]
-    func listByCategory(source: ContentSource, category: CategoryRef, page: Int) async throws -> [Video]
+    func listByCategory(
+        source: ContentSource,
+        category: CategoryRef,
+        page: Int,
+        applyLanguageFilter: Bool
+    ) async throws -> [Video]
     func search(source: ContentSource, query: String, page: Int) async throws -> [Video]
+    func listLanguages(source: ContentSource) async throws -> [ContentLanguage]
+    func setContentLanguageTermIds(_ ids: [Int64])
+}
+
+extension ContentRepository {
+    func listByCategory(source: ContentSource, category: CategoryRef, page: Int) async throws -> [Video] {
+        try await listByCategory(source: source, category: category, page: page, applyLanguageFilter: true)
+    }
+
+    func listLanguages(source: ContentSource) async throws -> [ContentLanguage] { [] }
+
+    func setContentLanguageTermIds(_ ids: [Int64]) {}
 }
 
 enum RepositoryError: Error, Equatable {
@@ -104,15 +128,19 @@ enum Sources {
 }
 
 final class WPComContentRepository: ContentRepository, @unchecked Sendable {
-    private let core: SharedRepository
+    private var core: SharedRepository
+    private let lock = NSLock()
+    private let pageSize: Int
     private let authProvider: AuthTokenProviding?
 
-    init(pageSize: Int = 24, authProvider: AuthTokenProviding? = nil) {
-        self.core = SharedRepository(pageSize: Int32(pageSize), authProvider: nil)
+    init(pageSize: Int = 24, authProvider: AuthTokenProviding? = nil, contentLanguageTermIds: [Int64] = []) {
+        self.pageSize = pageSize
+        self.core = Self.makeCore(pageSize: pageSize, contentLanguageTermIds: contentLanguageTermIds)
         self.authProvider = authProvider
     }
 
     func listLatest(source: ContentSource, page: Int) async throws -> [Video] {
+        let core = currentCore()
         let accessToken = await token(for: source)
         let videos = try await mapErrors {
             try await core.listLatest(
@@ -125,6 +153,7 @@ final class WPComContentRepository: ContentRepository, @unchecked Sendable {
     }
 
     func resolvePlayback(source: ContentSource, video: Video) async throws -> PlaybackAsset {
+        let core = currentCore()
         let accessToken = await token(for: source)
         let asset = try await mapErrors {
             try await core.resolvePlayback(
@@ -137,6 +166,7 @@ final class WPComContentRepository: ContentRepository, @unchecked Sendable {
     }
 
     func posterURL(source: ContentSource, video: Video) async -> URL? {
+        let core = currentCore()
         let accessToken = await token(for: source)
         let value = try? await core.posterUrl(
             source: source.shared,
@@ -150,13 +180,20 @@ final class WPComContentRepository: ContentRepository, @unchecked Sendable {
         throw RepositoryError.notImplemented
     }
 
-    func listByCategory(source: ContentSource, category: CategoryRef, page: Int) async throws -> [Video] {
+    func listByCategory(
+        source: ContentSource,
+        category: CategoryRef,
+        page: Int,
+        applyLanguageFilter: Bool
+    ) async throws -> [Video] {
+        let core = currentCore()
         let accessToken = await token(for: source)
         let videos = try await mapErrors {
             try await core.listByCategory(
                 source: source.shared,
                 category: category.shared,
                 page: Int32(page),
+                applyLanguageFilter: applyLanguageFilter,
                 accessToken: accessToken
             )
         }
@@ -164,6 +201,7 @@ final class WPComContentRepository: ContentRepository, @unchecked Sendable {
     }
 
     func search(source: ContentSource, query: String, page: Int) async throws -> [Video] {
+        let core = currentCore()
         let accessToken = await token(for: source)
         let videos = try await mapErrors {
             try await core.search(
@@ -174,6 +212,33 @@ final class WPComContentRepository: ContentRepository, @unchecked Sendable {
             )
         }
         return videos.map(Video.init(shared:))
+    }
+
+    func listLanguages(source: ContentSource) async throws -> [ContentLanguage] {
+        let core = currentCore()
+        let accessToken = await token(for: source)
+        let languages = try await mapErrors {
+            try await core.listLanguages(source: source.shared, accessToken: accessToken)
+        }
+        return languages.map(ContentLanguage.init(shared:))
+    }
+
+    func setContentLanguageTermIds(_ ids: [Int64]) {
+        lock.withLock {
+            core = Self.makeCore(pageSize: pageSize, contentLanguageTermIds: ids)
+        }
+    }
+
+    private func currentCore() -> SharedRepository {
+        lock.withLock { core }
+    }
+
+    private static func makeCore(pageSize: Int, contentLanguageTermIds: [Int64]) -> SharedRepository {
+        SharedRepository(
+            pageSize: Int32(pageSize),
+            authProvider: nil,
+            contentLanguageTermIds: contentLanguageTermIds.map { KotlinLong(longLong: $0) }
+        )
     }
 
     private func token(for source: ContentSource) async -> String? {
@@ -212,6 +277,14 @@ final class WPComContentRepository: ContentRepository, @unchecked Sendable {
     }
 }
 
+private extension NSLock {
+    func withLock<T>(_ operation: () throws -> T) rethrows -> T {
+        lock()
+        defer { unlock() }
+        return try operation()
+    }
+}
+
 private extension Account {
     init(shared: SharedAccount) {
         self.init(
@@ -232,6 +305,12 @@ private extension CategoryRef {
 
     var shared: SharedCategoryRef {
         SharedCategoryRef(id: id, name: name, slug: slug)
+    }
+}
+
+private extension ContentLanguage {
+    init(shared: SharedContentLanguage) {
+        self.init(id: shared.id, name: shared.name, slug: shared.slug)
     }
 }
 

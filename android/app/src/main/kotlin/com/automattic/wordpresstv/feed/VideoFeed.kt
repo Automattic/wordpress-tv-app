@@ -49,6 +49,7 @@ import androidx.tv.material3.Text
 sealed interface VideoQuery {
     data object Latest : VideoQuery
     data class Category(val category: CategoryRef) : VideoQuery
+    data class Collection(val category: CategoryRef) : VideoQuery
     data class Search(val term: String) : VideoQuery
 }
 
@@ -91,7 +92,18 @@ class VideoFeedViewModel(
 
     private suspend fun fetch(): List<Video> = when (query) {
         VideoQuery.Latest -> repository.listLatest(source, page = 1)
-        is VideoQuery.Category -> repository.listByCategory(source, query.category, page = 1)
+        is VideoQuery.Category -> repository.listByCategory(
+            source = source,
+            category = query.category,
+            page = 1,
+            applyLanguageFilter = true,
+        )
+        is VideoQuery.Collection -> repository.listByCategory(
+            source = source,
+            category = query.category,
+            page = 1,
+            applyLanguageFilter = false,
+        )
         is VideoQuery.Search -> repository.search(source, query.term, page = 1)
     }
 
@@ -112,8 +124,8 @@ fun VideoGrid(
     onAuthRequired: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val model = remember(source.id, query) { VideoFeedViewModel(repository, source, query) }
-    LaunchedEffect(source.id, query) { model.load() }
+    val model = remember(repository, source.id, query) { VideoFeedViewModel(repository, source, query) }
+    LaunchedEffect(repository, source.id, query) { model.load() }
     val scope = rememberCoroutineScope()
 
     Box(modifier.fillMaxSize()) {
@@ -197,7 +209,7 @@ fun VideoRail(
     firstCardFocus: FocusRequester? = null,
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 56.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = 56.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(24.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {

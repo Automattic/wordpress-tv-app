@@ -15,24 +15,24 @@ internal object Mapping {
      * Map a posts response into domain videos, in source order. Drops posts that
      * aren't published or have no resolvable VideoPress GUID.
      */
-    fun videos(response: PostsResponseDto, sourceId: String): List<Video> =
-        response.posts.mapNotNull { video(it, sourceId) }
+    fun videos(posts: List<PostDto>, sourceId: String): List<Video> =
+        posts.mapNotNull { video(it, sourceId) }
 
     fun video(post: PostDto, sourceId: String): Video? {
         if (post.status != "publish") return null
 
-        val attachment = firstAttachment(post)
-        val guid = resolveGuid(attachment, post.content) ?: return null // not playable — drop it
+        val content = post.content.rendered
+        val guid = embedGuid(content) ?: return null // not playable — drop it
 
         return Video(
             id = post.id.toString(),
             videoGuid = guid,
-            title = Html.plainText(post.title),
-            description = Html.plainText(post.excerpt),
-            posterUrl = poster(attachment),
-            durationSeconds = attachment?.length,
+            title = Html.plainText(post.title.rendered),
+            description = Html.plainText(post.excerpt.rendered),
+            posterUrl = null,
+            durationSeconds = null,
             sourceId = sourceId,
-            playbackToken = embedPlaybackToken(post.content),
+            playbackToken = embedPlaybackToken(content),
         )
     }
 
@@ -54,42 +54,19 @@ internal object Mapping {
     }
 
     /**
-     * The post's first attachment by ascending numeric key — deterministic even
-     * though JSON objects are unordered.
-     */
-    fun firstAttachment(post: PostDto): AttachmentDto? =
-        post.attachments
-            ?.toList()
-            ?.sortedBy { (key, _) -> key.toIntOrNull() ?: Int.MAX_VALUE }
-            ?.firstOrNull()
-            ?.second
-
-    /**
-     * GUID precedence: attachment `videopress_guid`, else the embed `src` in the
-     * post content, else `null` (caller drops the post).
-     */
-    fun resolveGuid(attachment: AttachmentDto?, content: String): String? {
-        val guid = attachment?.videopressGuid
-        if (!guid.isNullOrEmpty()) return guid
-        return embedGuid(content)
-    }
-
-    /**
-     * Parse a VideoPress GUID out of a `video.wordpress.com/embed/{guid}` iframe
-     * `src`. GUIDs are alphanumeric, so read until the first non-alphanumeric char.
+     * Parse a VideoPress GUID out of rendered post content. WP.com can render
+     * the player as a `video.wordpress.com/embed/{guid}` iframe or as a
+     * `videos.files.wordpress.com/{guid}/...` video asset. The GUID is the
+     * alphanumeric path segment after either marker.
      */
     fun embedGuid(content: String): String? {
-        val marker = "video.wordpress.com/embed/"
-        val start = content.indexOf(marker)
-        if (start == -1) return null
-        val guid = content.substring(start + marker.length).takeWhile { it.isLetterOrDigit() }
-        return guid.ifEmpty { null }
-    }
-
-    /** Poster precedence: `fmt_hd` -> `fmt_dvd` -> `fmt_std` -> null. */
-    fun poster(attachment: AttachmentDto?): String? {
-        val t = attachment?.thumbnails ?: return null
-        return t.fmtHd ?: t.fmtDvd ?: t.fmtStd
+        for (marker in listOf("video.wordpress.com/embed/", "videos.files.wordpress.com/")) {
+            val start = content.indexOf(marker)
+            if (start == -1) continue
+            val guid = content.substring(start + marker.length).takeWhile { it.isLetterOrDigit() }
+            if (guid.isNotEmpty()) return guid
+        }
+        return null
     }
 
     // --- VideoInfo -> PlaybackAsset ---

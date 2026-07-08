@@ -6,6 +6,7 @@ import Observation
 enum VideoQuery: Equatable {
     case latest
     case category(CategoryRef)
+    case collection(CategoryRef)
     case search(String)
 }
 
@@ -58,7 +59,19 @@ final class VideoFeedViewModel {
         case .latest:
             return try await repository.listLatest(source: source, page: 1)
         case .category(let ref):
-            return try await repository.listByCategory(source: source, category: ref, page: 1)
+            return try await repository.listByCategory(
+                source: source,
+                category: ref,
+                page: 1,
+                applyLanguageFilter: true
+            )
+        case .collection(let ref):
+            return try await repository.listByCategory(
+                source: source,
+                category: ref,
+                page: 1,
+                applyLanguageFilter: false
+            )
         case .search(let term):
             return try await repository.search(source: source, query: term, page: 1)
         }

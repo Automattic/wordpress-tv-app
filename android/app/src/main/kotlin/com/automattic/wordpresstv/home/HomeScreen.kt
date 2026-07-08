@@ -61,8 +61,8 @@ fun HomeScreen(
     onAuthRequired: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val model = remember { VideoFeedViewModel(repository, source, VideoQuery.Latest) }
-    LaunchedEffect(Unit) { model.load() }
+    val model = remember(repository, source.id) { VideoFeedViewModel(repository, source, VideoQuery.Latest) }
+    LaunchedEffect(repository, source.id) { model.load() }
 
     // Land initial focus on the first card of the topmost rail so the D-pad works
     // immediately; pressing Up from there reaches the nav bar.
@@ -71,8 +71,8 @@ fun HomeScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(44.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(32.dp),
     ) {
         if (continueWatching.isNotEmpty()) {
             item {
@@ -119,7 +119,7 @@ private fun ContinueWatchingRail(
     firstCardFocus: FocusRequester?,
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 56.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = 56.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(24.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -141,7 +141,7 @@ private fun FlagshipRail(
     firstCardFocus: FocusRequester?,
 ) {
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 56.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = 56.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(24.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -150,7 +150,7 @@ private fun FlagshipRail(
                 camp = camp,
                 resolveCover = resolveCover,
                 onClick = { onOpenCamp(camp) },
-                modifier = Modifier.width(200.dp),
+                modifier = Modifier.width(180.dp),
                 focusRequester = if (index == 0) firstCardFocus else null,
             )
         }
@@ -199,11 +199,11 @@ private fun LatestRail(
 /** A titled shelf: section header above its (horizontally scrolling) content. */
 @Composable
 private fun RailSection(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = title,
             color = Color.White,
-            fontSize = 24.sp,
+            fontSize = 23.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 56.dp),
         )
