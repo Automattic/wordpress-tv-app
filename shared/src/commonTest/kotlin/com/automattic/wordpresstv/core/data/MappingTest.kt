@@ -6,75 +6,55 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Mapping tests against one captured `posts` JSON fixture — mirrors the Apple
- * `MappingTests`: guid extraction + fallback + drop-if-missing, HTML-entity
- * decode, duration + poster precedence, and metadata-token extraction.
+ * Mapping tests against one captured wp/v2-style `posts` JSON fixture: rendered
+ * fields, GUID extraction from markup, drop-if-not-published, drop-if-missing,
+ * HTML decoding, and metadata-token extraction. Poster/duration are no longer
+ * inline in wp/v2 and are resolved later from video-info.
  */
 class MappingTest {
     private val json = Json { ignoreUnknownKeys = true }
 
-    // Four posts: a published one with an attachment guid + token, a published
-    // one whose guid comes from the embed, a draft (dropped), and a published one
-    // with no resolvable video (dropped).
     private val postsFixture = """
-        {
-          "posts": [
-            {
-              "ID": 101,
-              "title": "Hello &amp; Welcome",
-              "excerpt": "<p>Intro &mdash; first look</p>",
-              "content": "video.wordpress.com/embed/IGNOREDsinceAttachmentWins ... src=\"https://video.wordpress.com/embed/abc?metadata_token=tok.en-_123&amp;more\"",
-              "status": "publish",
-              "attachments": {
-                "55": {
-                  "videopress_guid": "GUIDfromAttach",
-                  "length": 320,
-                  "thumbnails": { "fmt_dvd": "https://x/dvd.jpg", "fmt_hd": "https://x/hd.jpg" }
-                }
-              }
-            },
-            {
-              "ID": 102,
-              "title": "From Embed",
-              "excerpt": "",
-              "content": "<iframe src=\"https://video.wordpress.com/embed/EmbedGuid99?foo=bar\"></iframe>",
-              "status": "publish",
-              "attachments": null
-            },
-            {
-              "ID": 103,
-              "title": "A Draft",
-              "excerpt": "",
-              "content": "https://video.wordpress.com/embed/draftguid",
-              "status": "draft",
-              "attachments": null
-            },
-            {
-              "ID": 104,
-              "title": "No Video Here",
-              "excerpt": "",
-              "content": "just some text, nothing playable",
-              "status": "publish",
-              "attachments": null
-            }
-          ]
-        }
+        [
+          {
+            "id": 101,
+            "status": "publish",
+            "title": { "rendered": "Hello &amp; Welcome" },
+            "excerpt": { "rendered": "<p>Intro &mdash; first look</p>" },
+            "content": { "rendered": "<iframe src=\"https://video.wordpress.com/embed/EmbedGuid99?metadata_token=tok.en-_123&amp;more\"></iframe>" }
+          },
+          {
+            "id": 102,
+            "status": "draft",
+            "title": { "rendered": "A Draft" },
+            "excerpt": { "rendered": "" },
+            "content": { "rendered": "https://video.wordpress.com/embed/draftguid" }
+          },
+          {
+            "id": 103,
+            "status": "publish",
+            "title": { "rendered": "No Video Here" },
+            "excerpt": { "rendered": "" },
+            "content": { "rendered": "just some text, nothing playable" }
+          }
+        ]
     """.trimIndent()
 
     private fun videos() =
-        Mapping.videos(json.decodeFromString<PostsResponseDto>(postsFixture), sourceId = "wordpresstv")
+        Mapping.videos(json.decodeFromString<List<PostDto>>(postsFixture), sourceId = "wordpresstv")
 
     @Test fun dropsDraftsAndUnplayablePosts() {
-        // 103 is a draft, 104 has no resolvable guid -> only 101 and 102 survive.
-        assertEquals(listOf("101", "102"), videos().map { it.id })
+        assertEquals(listOf("101"), videos().map { it.id })
     }
 
-    @Test fun prefersAttachmentGuidOverEmbed() {
-        assertEquals("GUIDfromAttach", videos()[0].videoGuid)
+    @Test fun extractsEmbedGuid() {
+        assertEquals("EmbedGuid99", videos()[0].videoGuid)
     }
 
-    @Test fun fallsBackToEmbedGuid() {
-        assertEquals("EmbedGuid99", videos()[1].videoGuid)
+    @Test fun extractsGuidFromVideoPlayerMarkup() {
+        val content = "<div class=\"video-player\"><video poster=" +
+            "\"https://videos.files.wordpress.com/lSDB2hhB/video-x_mp4_std.original.jpg\"></video></div>"
+        assertEquals("lSDB2hhB", Mapping.embedGuid(content))
     }
 
     @Test fun decodesHtmlEntitiesAndStripsTags() {
@@ -82,15 +62,26 @@ class MappingTest {
         assertEquals("Intro — first look", videos()[0].description)
     }
 
-    @Test fun mapsDurationAndPosterPrecedence() {
-        // fmt_hd wins over fmt_dvd; length is carried straight through.
-        assertEquals(320, videos()[0].durationSeconds)
-        assertEquals("https://x/hd.jpg", videos()[0].posterUrl)
+    @Test fun posterAndDurationAreResolvedLazily() {
+        assertNull(videos()[0].posterUrl)
+        assertNull(videos()[0].durationSeconds)
     }
 
     @Test fun extractsEmbedPlaybackToken() {
-        // Reads until the first character outside the URL-safe-base64 + `.` set.
         assertEquals("tok.en-_123", videos()[0].playbackToken)
-        assertNull(videos()[1].playbackToken)
+    }
+
+    @Test fun mapsLanguageTermsFromApi() {
+        val terms = listOf(
+            TermDto(id = 10, name = "English", slug = "english"),
+            TermDto(id = 20, name = "Polish/Polski", slug = "polishpolski"),
+            TermDto(id = 20, name = "Duplicate", slug = "duplicate"),
+            TermDto(id = 30, name = "", slug = "missing-name"),
+        )
+
+        assertEquals(
+            listOf(10L to "English", 20L to "Polish/Polski"),
+            contentLanguagesFromTerms(terms).map { it.id to it.name },
+        )
     }
 }

@@ -16,7 +16,10 @@ struct WordPressTVApp: App {
     init() {
         let auth = AuthManager(broker: BrokerClient(baseURL: Self.brokerBaseURL))
         self.auth = auth
-        self.repository = WPComContentRepository(authProvider: auth)
+        self.repository = WPComContentRepository(
+            authProvider: auth,
+            contentLanguageTermIds: ContentLanguageSelection.saved.contentLanguageTermIds
+        )
         self.store = WatchProgressStore()
     }
 

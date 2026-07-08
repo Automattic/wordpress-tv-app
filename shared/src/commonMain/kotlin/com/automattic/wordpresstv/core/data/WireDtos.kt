@@ -1,47 +1,39 @@
 package com.automattic.wordpresstv.core.data
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 // Wire-format DTOs for the WP.com REST API. Intentionally `internal` and mirror
 // the JSON shape exactly; everything outside this file works with domain types.
 // Mapping lives in `Mapping.kt`.
 //
-//   GET /rest/v1.1/sites/{site}/posts   -> PostsResponseDto
-//   GET /rest/v1.1/videos/{guid}        -> VideoInfoDto
+//   GET /wp/v2/sites/{site}/posts        -> List<PostDto>   (bare array)
+//   GET /wp/v2/sites/{site}/{taxonomy}   -> List<TermDto>   (slug -> term id)
+//   GET /rest/v1.1/videos/{guid}         -> VideoInfoDto
+//
+// The posts feed uses the modern wp/v2 endpoint because it filters by the
+// custom `language`/category taxonomies. wp/v2 wraps text fields in
+// `{ "rendered": ... }` and carries no attachment block, so VideoPress metadata
+// comes from rendered content and the v1.1 video-info endpoint.
 
 // --- Posts (the Latest grid) ---
 
 @Serializable
-internal data class PostsResponseDto(
-    val posts: List<PostDto> = emptyList(),
-)
-
-@Serializable
 internal data class PostDto(
-    @SerialName("ID") val id: Long,
-    val title: String = "",
-    val excerpt: String = "",
-    val content: String = "",
+    val id: Long,
     val status: String = "",
-    /** Keyed by attachment ID. Usually a single video attachment. */
-    val attachments: Map<String, AttachmentDto>? = null,
+    val title: RenderedDto = RenderedDto(),
+    val excerpt: RenderedDto = RenderedDto(),
+    val content: RenderedDto = RenderedDto(),
 )
 
 @Serializable
-internal data class AttachmentDto(
-    /** VideoPress GUID, when this attachment is a VideoPress video. */
-    @SerialName("videopress_guid") val videopressGuid: String? = null,
-    /** Duration in **seconds**. */
-    val length: Int? = null,
-    val thumbnails: ThumbnailsDto? = null,
-)
+internal data class RenderedDto(val rendered: String = "")
 
 @Serializable
-internal data class ThumbnailsDto(
-    @SerialName("fmt_hd") val fmtHd: String? = null,
-    @SerialName("fmt_dvd") val fmtDvd: String? = null,
-    @SerialName("fmt_std") val fmtStd: String? = null,
+internal data class TermDto(
+    val id: Long,
+    val name: String = "",
+    val slug: String = "",
 )
 
 // --- Video info (playback resolution) ---

@@ -1,11 +1,13 @@
 package com.automattic.wordpresstv.root
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -26,6 +28,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +55,8 @@ import com.automattic.wordpresstv.home.HomeScreen
 import com.automattic.wordpresstv.player.PlaybackRequest
 import com.automattic.wordpresstv.player.PlayerScreen
 import com.automattic.wordpresstv.search.SearchScreen
+import com.automattic.wordpresstv.settings.ContentLanguageSelection
+import com.automattic.wordpresstv.settings.SettingsScreen
 import com.automattic.wordpresstv.ui.WordPressMark
 import com.automattic.wordpresstv.ui.theme.BrandBlue
 import kotlinx.coroutines.launch
@@ -72,10 +78,17 @@ import androidx.tv.material3.Text
  * the Apple `ContentRootView`.
  */
 @Composable
-fun ContentRootScreen(repository: ContentRepository, auth: AuthManager, store: WatchProgressStore) {
+fun ContentRootScreen(
+    repository: ContentRepository,
+    auth: AuthManager,
+    store: WatchProgressStore,
+    contentLanguageSelection: ContentLanguageSelection,
+    onContentLanguageSelectionChange: (ContentLanguageSelection) -> Unit,
+) {
     var selected by remember { mutableStateOf<Section>(Section.Home) }
     var showPairing by remember { mutableStateOf(false) }
     var showAccountDialog by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     // Hoisted here (not inside a screen) so the player overlays the whole screen —
     // nav bar included — like the tvOS `fullScreenCover`, and every screen plays
     // through one path.
@@ -100,7 +113,16 @@ fun ContentRootScreen(repository: ContentRepository, auth: AuthManager, store: W
      * Best-effort — the card keeps its brand gradient if this fails.
      */
     suspend fun campCover(camp: FlagshipCamp): String? =
-        runCatching { repository.listByCategory(Sources.wordpressTV, camp.ref, 1).firstOrNull()?.posterUrl }.getOrNull()
+        runCatching {
+            val video = repository.listByCategory(
+                source = Sources.wordpressTV,
+                category = camp.ref,
+                page = 1,
+                applyLanguageFilter = false,
+            ).firstOrNull()
+                ?: return@runCatching null
+            repository.posterUrl(Sources.wordpressTV, video)
+        }.getOrNull()
 
     fun routeToPairing() {
         // A grid reported a 401/403 (an a8c.tv session expired) — clear the stale
@@ -112,35 +134,38 @@ fun ContentRootScreen(repository: ContentRepository, auth: AuthManager, store: W
 
     // Back returns to Home from any sub-section rather than exiting the app
     // (the player and dialogs handle their own Back).
-    BackHandler(enabled = selected != Section.Home && playing == null && !showPairing && !showAccountDialog) {
+    BackHandler(enabled = selected != Section.Home && playing == null && !showPairing && !showAccountDialog && !showSettings) {
         selected = Section.Home
     }
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        Column(Modifier.fillMaxSize()) {
-            NavBar(
-                selected = selected,
-                showA8c = auth.isAuthorizedForA8C,
-                isAuthenticated = auth.isAuthenticated,
-                account = auth.account,
-                onSelect = { selected = it },
-                onSignIn = { showPairing = true },
-                onAccount = { showAccountDialog = true },
-            )
+        if (!showSettings) {
+            Column(Modifier.fillMaxSize()) {
+                NavBar(
+                    selected = selected,
+                    showA8c = auth.isAuthorizedForA8C,
+                    isAuthenticated = auth.isAuthenticated,
+                    account = auth.account,
+                    onSelect = { selected = it },
+                    onSignIn = { showPairing = true },
+                    onAccount = { showAccountDialog = true },
+                    onSettings = { showSettings = true },
+                )
 
-            // Recreate the body when the selection — or auth state — changes, so
-            // signing in/out reloads private content.
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                key(sectionKey(selected), auth.isAuthenticated) {
-                    Body(
-                        section = selected,
-                        repository = repository,
-                        store = store,
-                        onPlay = ::play,
-                        onOpenCamp = { selected = Section.Flagship(it) },
-                        resolveCover = ::campCover,
-                        onAuthRequired = ::routeToPairing,
-                    )
+                // Recreate the body when the selection — or auth state — changes, so
+                // signing in/out reloads private content.
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    key(sectionKey(selected), auth.isAuthenticated, repository) {
+                        Body(
+                            section = selected,
+                            repository = repository,
+                            store = store,
+                            onPlay = ::play,
+                            onOpenCamp = { selected = Section.Flagship(it) },
+                            resolveCover = ::campCover,
+                            onAuthRequired = ::routeToPairing,
+                        )
+                    }
                 }
             }
         }
@@ -176,6 +201,15 @@ fun ContentRootScreen(repository: ContentRepository, auth: AuthManager, store: W
                     selected = Section.Home
                 },
                 onDismiss = { showAccountDialog = false },
+            )
+        }
+
+        if (showSettings) {
+            SettingsScreen(
+                repository = repository,
+                languageSelection = contentLanguageSelection,
+                onLanguageSelectionChange = onContentLanguageSelectionChange,
+                onDismiss = { showSettings = false },
             )
         }
     }
@@ -239,7 +273,7 @@ private fun Body(
             VideoGrid(
                 repository = repository,
                 source = Sources.wordpressTV,
-                query = VideoQuery.Category(section.camp.ref),
+                query = VideoQuery.Collection(section.camp.ref),
                 onPlay = onPlay,
                 onAuthRequired = onAuthRequired,
                 modifier = Modifier.weight(1f),
@@ -276,22 +310,27 @@ private fun NavBar(
     onSelect: (Section) -> Unit,
     onSignIn: () -> Unit,
     onAccount: () -> Unit,
+    onSettings: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 56.dp)
-            .padding(top = 32.dp, bottom = 16.dp),
+            .height(104.dp)
+            .padding(horizontal = 56.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        WordPressMark(Modifier.size(44.dp))
+        WordPressMark(Modifier.size(42.dp))
 
         Box(Modifier.weight(1f))
 
         NavCapsule(selected = selected, showA8c = showA8c, onSelect = onSelect)
 
         Box(Modifier.weight(1f))
+
+        NavIconButton(onClick = onSettings) {
+            SettingsIcon(Modifier.size(22.dp))
+        }
 
         if (isAuthenticated) {
             NavAvatarButton(account = account, onClick = onAccount)
@@ -300,6 +339,53 @@ private fun NavBar(
             // the entry point is limited to debug builds until it ships.
             NavTab(selected = false, onClick = onSignIn) { Text(stringResource(R.string.sign_in)) }
         }
+    }
+}
+
+@Composable
+private fun NavIconButton(onClick: () -> Unit, content: @Composable () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = ClickableSurfaceDefaults.shape(CircleShape),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.Transparent,
+            focusedContainerColor = Color.White.copy(alpha = 0.16f),
+            pressedContainerColor = Color.White.copy(alpha = 0.18f),
+            contentColor = Color.White.copy(alpha = 0.72f),
+            focusedContentColor = Color.White,
+            pressedContentColor = Color.White,
+        ),
+    ) {
+        Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun SettingsIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val stroke = size.minDimension * 0.12f
+        val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+        val outer = size.minDimension * 0.42f
+        val inner = size.minDimension * 0.16f
+
+        for (i in 0 until 8) {
+            val angle = (Math.PI * 2.0 * i / 8.0).toFloat()
+            val start = androidx.compose.ui.geometry.Offset(
+                x = center.x + kotlin.math.cos(angle) * outer * 0.78f,
+                y = center.y + kotlin.math.sin(angle) * outer * 0.78f,
+            )
+            val end = androidx.compose.ui.geometry.Offset(
+                x = center.x + kotlin.math.cos(angle) * outer,
+                y = center.y + kotlin.math.sin(angle) * outer,
+            )
+            drawLine(Color.White, start = start, end = end, strokeWidth = stroke, cap = StrokeCap.Round)
+        }
+
+        drawCircle(Color.White, radius = outer * 0.72f, center = center, style = Stroke(width = stroke))
+        drawCircle(Color.White, radius = inner, center = center, style = Stroke(width = stroke))
     }
 }
 

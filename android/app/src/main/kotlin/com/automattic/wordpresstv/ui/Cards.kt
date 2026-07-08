@@ -41,6 +41,7 @@ import com.automattic.wordpresstv.continuewatching.WatchProgress
 import com.automattic.wordpresstv.core.domain.Video
 import com.automattic.wordpresstv.ui.theme.BrandBlue
 import androidx.tv.material3.Card
+import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.Text
 
 /**
@@ -127,7 +128,8 @@ fun PortraitCampCard(
     Column(modifier) {
         Card(
             onClick = onClick,
-            modifier = Modifier.width(200.dp).height(300.dp).focusRequesterOrNone(focusRequester),
+            modifier = Modifier.fillMaxWidth().height(230.dp).focusRequesterOrNone(focusRequester),
+            scale = CardDefaults.scale(focusedScale = 1.03f),
         ) {
             Box(Modifier.fillMaxSize()) {
                 // Brand gradient — the base, and the fallback if no cover.
@@ -159,17 +161,17 @@ fun PortraitCampCard(
                 )
 
                 WordPressMark(
-                    modifier = Modifier.align(Alignment.TopStart).padding(20.dp).size(32.dp),
+                    modifier = Modifier.align(Alignment.TopStart).padding(18.dp).size(28.dp),
                 )
 
-                Column(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
-                    Text("WordCamp", color = Color.White.copy(alpha = 0.9f), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                    Text(place, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
+                    Text("WordCamp", color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(place, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
-        Text(camp.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(8.dp))
+        Text(camp.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -185,7 +187,7 @@ fun ContinueWatchingCard(
     focusRequester: FocusRequester? = null,
 ) {
     Column(modifier) {
-        Card(onClick = onClick, modifier = Modifier.width(340.dp).focusRequesterOrNone(focusRequester)) {
+        Card(onClick = onClick, modifier = Modifier.width(320.dp).focusRequesterOrNone(focusRequester)) {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
                 PosterBox(progress.posterUrl, Modifier.fillMaxSize())
                 ResumeBar(

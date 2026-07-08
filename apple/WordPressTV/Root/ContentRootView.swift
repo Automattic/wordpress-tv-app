@@ -1,4 +1,62 @@
+import Foundation
 import SwiftUI
+
+struct ContentLanguageSelection: Equatable, Sendable {
+    static let storageKey = "contentLanguageTermIds"
+
+    var ids: [Int64]
+
+    static let all = ContentLanguageSelection(ids: [])
+
+    init(ids: [Int64]) {
+        var seen = Set<Int64>()
+        self.ids = ids.filter { seen.insert($0).inserted }
+    }
+
+    init(rawValue: String) {
+        if rawValue.isEmpty || rawValue == "all" {
+            self = .all
+        } else {
+            self.init(ids: rawValue.split(separator: ",").compactMap { Int64($0) })
+        }
+    }
+
+    static var saved: ContentLanguageSelection {
+        if let raw = UserDefaults.standard.string(forKey: storageKey) {
+            return ContentLanguageSelection(rawValue: raw)
+        }
+        return .all
+    }
+
+    var rawValue: String {
+        ids.map(String.init).joined(separator: ",")
+    }
+
+    var contentLanguageTermIds: [Int64] {
+        ids
+    }
+
+    func summary(languages: [ContentLanguage]) -> String {
+        guard !ids.isEmpty else { return "All languages" }
+        let names = ids.map { id in
+            languages.first { $0.id == id }?.name ?? "#\(id)"
+        }
+        if names.count <= 3 { return names.joined(separator: ", ") }
+        return "\(names.prefix(3).joined(separator: ", ")) +\(names.count - 3)"
+    }
+
+    func contains(_ language: ContentLanguage) -> Bool {
+        ids.contains(language.id)
+    }
+
+    mutating func toggle(_ language: ContentLanguage) {
+        if ids.contains(language.id) {
+            ids.removeAll { $0 == language.id }
+        } else {
+            ids.append(language.id)
+        }
+    }
+}
 
 /// The app shell: a persistent top nav (the design's pill bar) over a body that
 /// swaps between the railed Home, a category grid, flagship-camp drill-ins, and
@@ -16,6 +74,9 @@ struct ContentRootView: View {
     @State private var playback: PlaybackRequest?
     @State private var showPairing = false
     @State private var showAccountSheet = false
+    @State private var showSettings = false
+    @AppStorage(ContentLanguageSelection.storageKey)
+    private var contentLanguageSelectionRaw = ContentLanguageSelection.saved.rawValue
     /// Which nav control the tvOS focus engine currently holds, so the unified
     /// capsule can highlight it (selection and focus are independent).
     @FocusState private var focusedNav: NavFocus?
@@ -41,12 +102,21 @@ struct ContentRootView: View {
             navBar
             body(for: selected)
                 // Recreate the body when the selection — or auth state — changes,
-                // so signing in/out reloads private content.
-                .id("\(sectionKey)-\(auth.isAuthenticated)")
+                // so signing in/out and language changes reload content.
+                .id("\(sectionKey)-\(auth.isAuthenticated)-\(contentLanguageSelectionRaw)")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.ignoresSafeArea())
+        .onAppear { applyContentLanguageSelection() }
+        .onChange(of: contentLanguageSelectionRaw) { _, _ in applyContentLanguageSelection() }
+        .fullScreenCover(isPresented: $showSettings) {
+            SettingsScreen(
+                repository: repository,
+                languageSelection: contentLanguageSelectionBinding,
+                onDismiss: { showSettings = false }
+            )
+        }
         .fullScreenCover(item: $playback) { request in
             PlayerView(request: request, store: store)
         }
@@ -101,7 +171,7 @@ struct ContentRootView: View {
                 VideoGrid(
                     repository: repository,
                     source: Sources.wordpressTV,
-                    query: .category(camp.ref),
+                    query: .collection(camp.ref),
                     onPlay: play,
                     onAuthRequired: routeToPairing
                 )
@@ -139,6 +209,7 @@ struct ContentRootView: View {
     /// account control isn't a content section.
     private enum NavFocus: Hashable {
         case section(Section)
+        case settings
         case account
     }
 
@@ -197,35 +268,60 @@ struct ContentRootView: View {
     /// with a contained focus highlight, no system chrome.
     @ViewBuilder
     private var accountControl: some View {
-        let isFocused = focusedNav == .account
-        if auth.isAuthenticated {
-            Button { showAccountSheet = true } label: {
-                AvatarView(url: auth.account?.avatarURL)
-                    .overlay(Circle().stroke(.white, lineWidth: isFocused ? 4 : 0))
+        HStack(spacing: 14) {
+            let settingsFocused = focusedNav == .settings
+            Button { showSettings = true } label: {
+                Image(systemName: "gearshape.fill")
             }
-            .buttonStyle(BareFocusStyle())
-            .focused($focusedNav, equals: .account)
+            .buttonStyle(IconCircleButtonStyle(isFocused: settingsFocused))
+            .focused($focusedNav, equals: .settings)
             .animation(.easeOut(duration: 0.15), value: focusedNav)
-            .confirmationDialog(
-                auth.account?.displayName ?? "Account",
-                isPresented: $showAccountSheet,
-                titleVisibility: .visible
-            ) {
-                Button("Log out", role: .destructive, action: logOut)
-                Button("Cancel", role: .cancel) {}
+
+            let isFocused = focusedNav == .account
+            if auth.isAuthenticated {
+                Button { showAccountSheet = true } label: {
+                    AvatarView(url: auth.account?.avatarURL)
+                        .overlay(Circle().stroke(.white, lineWidth: isFocused ? 4 : 0))
+                }
+                .buttonStyle(BareFocusStyle())
+                .focused($focusedNav, equals: .account)
+                .animation(.easeOut(duration: 0.15), value: focusedNav)
+                .confirmationDialog(
+                    auth.account?.displayName ?? "Account",
+                    isPresented: $showAccountSheet,
+                    titleVisibility: .visible
+                ) {
+                    Button("Log out", role: .destructive, action: logOut)
+                    Button("Cancel", role: .cancel) {}
+                }
+            } else {
+                // Sign-in relies on the QR pairing backend, which isn't ready yet, so
+                // the entry point is limited to debug builds until it ships.
+                #if DEBUG
+                Button { showPairing = true } label: {
+                    Label("Sign in", systemImage: "person.crop.circle")
+                }
+                .buttonStyle(CapsuleTabStyle(isFocused: isFocused, idleFill: .white.opacity(0.08)))
+                .focused($focusedNav, equals: .account)
+                .animation(.easeOut(duration: 0.15), value: focusedNav)
+                #endif
             }
-        } else {
-            // Sign-in relies on the QR pairing backend, which isn't ready yet, so
-            // the entry point is limited to debug builds until it ships.
-            #if DEBUG
-            Button { showPairing = true } label: {
-                Label("Sign in", systemImage: "person.crop.circle")
-            }
-            .buttonStyle(CapsuleTabStyle(isFocused: isFocused, idleFill: .white.opacity(0.08)))
-            .focused($focusedNav, equals: .account)
-            .animation(.easeOut(duration: 0.15), value: focusedNav)
-            #endif
         }
+    }
+
+    private var contentLanguageSelection: ContentLanguageSelection {
+        ContentLanguageSelection(rawValue: contentLanguageSelectionRaw)
+    }
+
+    private var contentLanguageSelectionBinding: Binding<ContentLanguageSelection> {
+        Binding(
+            get: { contentLanguageSelection },
+            set: { contentLanguageSelectionRaw = $0.rawValue }
+        )
+    }
+
+    private func applyContentLanguageSelection() {
+        repository.setContentLanguageTermIds(contentLanguageSelection.contentLanguageTermIds)
     }
 
     // MARK: Playback
@@ -236,9 +332,11 @@ struct ContentRootView: View {
         let videos = try? await repository.listByCategory(
             source: Sources.wordpressTV,
             category: camp.ref,
-            page: 1
+            page: 1,
+            applyLanguageFilter: false
         )
-        return videos?.first?.posterUrl
+        guard let video = videos?.first else { return nil }
+        return await repository.posterURL(source: Sources.wordpressTV, video: video)
     }
 
     /// Resolve a tapped video to a playable asset, wire its resume point, and
@@ -292,6 +390,219 @@ private struct CapsuleTabStyle: ButtonStyle {
             .padding(.vertical, 12)
             .background(Capsule().fill(fill))
             .opacity(configuration.isPressed ? 0.75 : 1)
+    }
+}
+
+private struct IconCircleButtonStyle: ButtonStyle {
+    var isFocused = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.title2.weight(.semibold))
+            .foregroundStyle(isFocused ? .white : .white.opacity(0.7))
+            .frame(width: 58, height: 58)
+            .background(Circle().fill(isFocused ? .white.opacity(0.22) : .white.opacity(0.08)))
+            .opacity(configuration.isPressed ? 0.75 : 1)
+    }
+}
+
+private struct SettingsScreen: View {
+    let repository: ContentRepository
+    @Binding var languageSelection: ContentLanguageSelection
+    let onDismiss: () -> Void
+
+    @State private var languages: [ContentLanguage] = []
+    @State private var state: LoadState = .loading
+    @FocusState private var focusedRow: Row?
+
+    private enum LoadState: Equatable {
+        case loading
+        case loaded
+        case failed
+    }
+
+    private enum Row: Hashable {
+        case all
+        case language(Int64)
+        case done
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                HStack(alignment: .center) {
+                    Text("Settings")
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundStyle(.white)
+
+                    Spacer()
+
+                    Button("Done", action: onDismiss)
+                        .buttonStyle(SettingsDoneButtonStyle(isFocused: focusedRow == .done))
+                        .focused($focusedRow, equals: .done)
+                }
+                .padding(.horizontal, 84)
+                .padding(.top, 58)
+                .padding(.bottom, 44)
+
+                HStack(alignment: .top, spacing: 72) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Content Language")
+                            .font(.title2.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.9)
+
+                        Text(languageSelection.summary(languages: languages))
+                            .font(.body)
+                            .foregroundStyle(.white.opacity(0.62))
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(width: 560, alignment: .leading)
+                    .padding(.top, 8)
+
+                    languageList
+                }
+                .padding(.horizontal, 84)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+        }
+        .task { await loadLanguages() }
+        .onExitCommand(perform: onDismiss)
+    }
+
+    @ViewBuilder
+    private var languageList: some View {
+        switch state {
+        case .loading:
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: 780, maxHeight: .infinity)
+
+        case .failed:
+            Placeholder(
+                message: "Couldn’t load languages. Please try again.",
+                action: ("Retry", { Task { await loadLanguages() } })
+            )
+            .frame(maxWidth: 780, maxHeight: .infinity)
+
+        case .loaded:
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 10) {
+                        allLanguagesButton
+                            .id(Row.all)
+
+                        ForEach(languages) { language in
+                            languageButton(language)
+                                .id(Row.language(language.id))
+                        }
+                    }
+                    .padding(.trailing, 36)
+                    .padding(.bottom, 80)
+                }
+                .frame(maxWidth: 780, maxHeight: .infinity)
+                .onAppear {
+                    focusedRow = initialFocus
+                    proxy.scrollTo(initialFocus, anchor: .center)
+                }
+            }
+        }
+    }
+
+    private func loadLanguages() async {
+        state = .loading
+        do {
+            languages = try await repository.listLanguages(source: Sources.wordpressTV)
+            state = .loaded
+        } catch {
+            languages = []
+            state = .failed
+        }
+    }
+
+    private var initialFocus: Row {
+        languageSelection.ids.first.map(Row.language) ?? .all
+    }
+
+    private var allLanguagesButton: some View {
+        Button {
+            languageSelection = .all
+        } label: {
+            SettingsLanguageRow(
+                title: "All languages",
+                isSelected: languageSelection.ids.isEmpty
+            )
+        }
+        .buttonStyle(SettingsLanguageButtonStyle(isFocused: focusedRow == .all))
+        .focused($focusedRow, equals: .all)
+    }
+
+    private func languageButton(_ language: ContentLanguage) -> some View {
+        Button {
+            var next = languageSelection
+            next.toggle(language)
+            languageSelection = next
+        } label: {
+            SettingsLanguageRow(
+                title: language.name,
+                isSelected: languageSelection.contains(language)
+            )
+        }
+        .buttonStyle(SettingsLanguageButtonStyle(isFocused: focusedRow == .language(language.id)))
+        .focused($focusedRow, equals: .language(language.id))
+    }
+}
+
+private struct SettingsLanguageRow: View {
+    let title: String
+    let isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: 20) {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(isSelected ? Brand.blue : .white.opacity(0.42))
+                .frame(width: 34)
+
+            Text(title)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+
+            Spacer(minLength: 20)
+        }
+        .frame(maxWidth: .infinity, minHeight: 74, alignment: .leading)
+    }
+}
+
+private struct SettingsLanguageButtonStyle: ButtonStyle {
+    var isFocused = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 24)
+            .background(RoundedRectangle(cornerRadius: 12).fill(isFocused ? .white.opacity(0.22) : .white.opacity(0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(isFocused ? .white.opacity(0.58) : .clear, lineWidth: 2))
+            .opacity(configuration.isPressed ? 0.72 : 1)
+    }
+}
+
+private struct SettingsDoneButtonStyle: ButtonStyle {
+    var isFocused = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.title3.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 28)
+            .padding(.vertical, 14)
+            .background(Capsule().fill(isFocused ? Brand.blue : .white.opacity(0.1)))
+            .opacity(configuration.isPressed ? 0.72 : 1)
     }
 }
 

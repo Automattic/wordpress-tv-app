@@ -1,6 +1,7 @@
 package com.automattic.wordpresstv
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -12,9 +13,12 @@ import com.automattic.wordpresstv.auth.AuthManager
 import com.automattic.wordpresstv.auth.BrokerClient
 import com.automattic.wordpresstv.auth.SessionStore
 import com.automattic.wordpresstv.continuewatching.WatchProgressStore
+import com.automattic.wordpresstv.settings.ContentLanguagePreferenceStore
+import com.automattic.wordpresstv.settings.ContentLanguageSelection
 import com.automattic.wordpresstv.root.ContentRootScreen
 import com.automattic.wordpresstv.splash.SplashScreen
 import com.automattic.wordpresstv.core.data.WpComContentRepository
+import kotlinx.coroutines.launch
 
 /**
  * Composition root. `auth` owns the a8c.tv token (DataStore + broker) and feeds
@@ -35,7 +39,24 @@ fun WordPressTvApp() {
             scope = scope,
         )
     }
-    val repository = remember { WpComContentRepository(authProvider = auth) }
+    val languagePreferences = remember { ContentLanguagePreferenceStore(context.applicationContext) }
+    var contentLanguageSelection by remember { mutableStateOf(ContentLanguageSelection.All) }
+
+    LaunchedEffect(languagePreferences) {
+        languagePreferences.selection.collect { contentLanguageSelection = it }
+    }
+
+    fun updateContentLanguageSelection(selection: ContentLanguageSelection) {
+        contentLanguageSelection = selection
+        scope.launch { languagePreferences.write(selection) }
+    }
+
+    val repository = remember(auth, contentLanguageSelection.rawValue) {
+        WpComContentRepository(
+            authProvider = auth,
+            contentLanguageTermIds = contentLanguageSelection.ids,
+        )
+    }
     // Local Continue Watching store (per-device resume points).
     val store = remember { WatchProgressStore(context.applicationContext) }
 
@@ -44,6 +65,12 @@ fun WordPressTvApp() {
     if (showSplash) {
         SplashScreen(onFinished = { showSplash = false })
     } else {
-        ContentRootScreen(repository = repository, auth = auth, store = store)
+        ContentRootScreen(
+            repository = repository,
+            auth = auth,
+            store = store,
+            contentLanguageSelection = contentLanguageSelection,
+            onContentLanguageSelectionChange = ::updateContentLanguageSelection,
+        )
     }
 }

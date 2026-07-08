@@ -92,6 +92,7 @@ tasks.register("syncAppleFrameworkForXcode") {
         .dir("xcode-frameworks/$configuration/$sdkName/WordPressTVSharedCore.framework")
 
     outputs.dir(outputFrameworkDir)
+    outputs.upToDateWhen { false }
 
     doLast {
         val outputDir = outputFrameworkDir.get().asFile

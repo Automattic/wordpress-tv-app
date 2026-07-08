@@ -1,27 +1,39 @@
 package com.automattic.wordpresstv.core.data
 
 import com.automattic.wordpresstv.core.domain.CategoryRef
+import com.automattic.wordpresstv.core.domain.ContentLanguage
 import com.automattic.wordpresstv.core.domain.ContentSource
 import com.automattic.wordpresstv.core.domain.PlaybackAsset
 import com.automattic.wordpresstv.core.domain.Video
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 
 /**
- * [ContentRepository] backed by the WP.com REST API (v1.1).
+ * [ContentRepository] backed by the WP.com REST API.
  *
- * For a public source (wordpress.tv, `auth == NONE`) it sends no token. For a
- * private source (a8c.tv, `auth == WPCOM_OAUTH`) it asks the injected
- * [AuthTokenProvider] for the user's token and sets `Authorization: Bearer`. The
- * implementation is otherwise common Kotlin; only [PlatformHttpClient] is
- * provided by Android/tvOS.
+ * Posts use wp/v2 (`/wp/v2/sites/{site}/posts`) because that endpoint supports
+ * filtering by custom taxonomy term IDs, including WordPress.tv's `language`
+ * taxonomy. Playback and posters still use the v1.1 video-info endpoint because
+ * wp/v2 posts do not include VideoPress attachment metadata.
+ *
+ * [contentLanguageTermIds] are WordPress.tv `language` taxonomy term IDs from
+ * the app's explicit content-language setting. Browse feeds apply that language
+ * filter for public WordPress.tv content. Search and collection drill-ins ignore
+ * it, and authenticated a8c.tv content does not use the public language
+ * taxonomy.
  */
 class WpComContentRepository(
     private val pageSize: Int = 24,
     private val authProvider: AuthTokenProvider? = null,
+    private val contentLanguageTermIds: List<Long> = emptyList(),
 ) : ContentRepository {
 
     private val client = PlatformHttpClient()
     private val json = Json { ignoreUnknownKeys = true }
+    private val termCacheLock = Mutex()
+    private val languageCache = mutableMapOf<String, List<ContentLanguage>>()
+    private val categoryIdCache = mutableMapOf<String, Long>()
 
     /**
      * Swift cannot conveniently implement a suspending Kotlin provider, so the
@@ -40,7 +52,7 @@ class WpComContentRepository(
         resolvePlayback(source, video, tokenFor(source))
 
     suspend fun resolvePlayback(source: ContentSource, video: Video, accessToken: String?): PlaybackAsset {
-        val url = apiUrl("videos", video.videoGuid)
+        val url = apiUrl(VIDEOS_API_BASE, "videos", video.videoGuid)
         val dto = decode<VideoInfoDto>(getBody(url, tokenFor(source, accessToken)))
 
         val asset = Mapping.playbackAsset(
@@ -58,42 +70,56 @@ class WpComContentRepository(
         posterUrl(source, video, tokenFor(source))
 
     suspend fun posterUrl(source: ContentSource, video: Video, accessToken: String?): String? {
-        if (!source.needsPlaybackToken) return video.posterUrl
-
-        val token = tokenFor(source, accessToken) ?: return video.posterUrl
-        val url = apiUrl("videos", video.videoGuid)
-        return try {
-            val info = decode<VideoInfoDto>(getBody(url, token))
-            val poster = info.poster ?: return null
-            val playbackToken = video.playbackToken ?: return poster
-            appendQuery(poster, "metadata_token", playbackToken)
+        val token = tokenFor(source, accessToken)
+        val url = apiUrl(VIDEOS_API_BASE, "videos", video.videoGuid)
+        val info = try {
+            decode<VideoInfoDto>(getBody(url, token))
         } catch (_: Exception) {
-            null
+            return null
         }
+
+        val poster = info.poster ?: return null
+        if (!source.needsPlaybackToken) return poster
+        val playbackToken = video.playbackToken ?: return poster
+        return appendQuery(poster, "metadata_token", playbackToken)
     }
 
-    override suspend fun listByCategory(source: ContentSource, category: CategoryRef, page: Int): List<Video> =
-        listPosts(source, page, extraQuery = mapOf("category" to category.slug))
+    override suspend fun listByCategory(
+        source: ContentSource,
+        category: CategoryRef,
+        page: Int,
+        applyLanguageFilter: Boolean,
+    ): List<Video> =
+        listByCategory(source, category, page, applyLanguageFilter = applyLanguageFilter, accessToken = null)
 
     suspend fun listByCategory(
         source: ContentSource,
         category: CategoryRef,
         page: Int,
+        applyLanguageFilter: Boolean,
         accessToken: String?,
-    ): List<Video> =
-        listPosts(source, page, extraQuery = mapOf("category" to category.slug), accessToken = accessToken)
+    ): List<Video> {
+        val id = categoryId(source, category.slug, accessToken) ?: return emptyList()
+        return listPosts(
+            source = source,
+            page = page,
+            categoryIds = listOf(id),
+            applyLanguageFilter = applyLanguageFilter,
+            accessToken = accessToken,
+        )
+    }
 
     override suspend fun search(source: ContentSource, query: String, page: Int): List<Video> =
-        search(source, query, page, tokenFor(source))
+        search(source, query, page, accessToken = null)
 
     suspend fun search(source: ContentSource, query: String, page: Int, accessToken: String?): List<Video> {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return emptyList()
         return listPosts(
-            source,
-            page,
-            orderByDate = false,
-            extraQuery = mapOf("search" to trimmed),
+            source = source,
+            page = page,
+            search = trimmed,
+            applyLanguageFilter = false,
             accessToken = accessToken,
         )
     }
@@ -101,23 +127,77 @@ class WpComContentRepository(
     override suspend fun listCategories(source: ContentSource) =
         throw RepositoryException.NotImplemented
 
+    override suspend fun listLanguages(source: ContentSource): List<ContentLanguage> =
+        listLanguages(source, accessToken = null)
+
+    suspend fun listLanguages(source: ContentSource, accessToken: String?): List<ContentLanguage> {
+        if (source.auth != ContentSource.Auth.NONE) return emptyList()
+        termCacheLock.withLock {
+            languageCache[source.id]?.let { return it }
+            val languages = contentLanguagesFromTerms(fetchTerms(source, "language", accessToken = accessToken))
+            languageCache[source.id] = languages
+            return languages
+        }
+    }
+
     private suspend fun listPosts(
         source: ContentSource,
         page: Int,
-        orderByDate: Boolean = true,
-        extraQuery: Map<String, String> = emptyMap(),
+        categoryIds: List<Long> = emptyList(),
+        search: String? = null,
+        applyLanguageFilter: Boolean = true,
         accessToken: String? = null,
     ): List<Video> {
-        val query = mutableMapOf(
-            "number" to pageSize.toString(),
+        val query = mutableListOf(
+            "per_page" to pageSize.toString(),
             "page" to maxOf(1, page).toString(),
+            "_fields" to "id,status,title,excerpt,content",
         )
-        if (orderByDate) query["order_by"] = "date"
-        query.putAll(extraQuery)
+        categoryIds.forEach { query += "categories[]" to it.toString() }
+        if (applyLanguageFilter) {
+            languageIds(source).forEach { query += "language[]" to it.toString() }
+        }
+        search?.let { query += "search" to it }
 
-        val url = apiUrl("sites", source.wpcomSite, "posts", query = query)
-        val dto = decode<PostsResponseDto>(getBody(url, tokenFor(source, accessToken)))
-        return Mapping.videos(dto, source.id)
+        val url = apiUrl(POSTS_API_BASE, "sites", source.wpcomSite, "posts", query = query)
+        val posts = decode<List<PostDto>>(getBody(url, tokenFor(source, accessToken)))
+        return Mapping.videos(posts, source.id)
+    }
+
+    private fun languageIds(source: ContentSource): List<Long> {
+        if (contentLanguageTermIds.isEmpty()) return emptyList()
+        if (source.auth != ContentSource.Auth.NONE) return emptyList()
+        return contentLanguageTermIds.distinct()
+    }
+
+    private suspend fun categoryId(source: ContentSource, slug: String, accessToken: String?): Long? {
+        val key = "${source.wpcomSite}:$slug"
+        termCacheLock.withLock {
+            categoryIdCache[key]?.let { return it }
+            val terms = fetchTerms(source, "categories", slug = slug, accessToken = accessToken)
+            val id = (terms.firstOrNull { it.slug == slug } ?: terms.firstOrNull())?.id
+            if (id != null) categoryIdCache[key] = id
+            return id
+        }
+    }
+
+    private suspend fun fetchTerms(
+        source: ContentSource,
+        taxonomy: String,
+        slug: String? = null,
+        accessToken: String? = null,
+    ): List<TermDto> {
+        val query = mutableListOf(
+            "_fields" to "id,name,slug",
+            "per_page" to "100",
+        )
+        slug?.let { query += "slug" to it }
+        val url = apiUrl(POSTS_API_BASE, "sites", source.wpcomSite, taxonomy, query = query)
+        return try {
+            decode<List<TermDto>>(getBody(url, tokenFor(source, accessToken)))
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     private suspend fun tokenFor(source: ContentSource, explicitToken: String? = null): String? {
@@ -146,14 +226,18 @@ class WpComContentRepository(
         return "$url$separator${name.urlEncoded()}=${value.urlEncoded()}"
     }
 
-    private fun apiUrl(vararg pathSegments: String, query: Map<String, String> = emptyMap()): String {
+    private fun apiUrl(
+        base: String,
+        vararg pathSegments: String,
+        query: List<Pair<String, String>> = emptyList(),
+    ): String {
         val path = pathSegments.joinToString("/") { it.urlEncoded() }
-        val base = "$API_BASE/$path"
-        if (query.isEmpty()) return base
-        val queryString = query.entries.joinToString("&") { (name, value) ->
+        val url = "$base/$path"
+        if (query.isEmpty()) return url
+        val queryString = query.joinToString("&") { (name, value) ->
             "${name.urlEncoded()}=${value.urlEncoded()}"
         }
-        return "$base?$queryString"
+        return "$url?$queryString"
     }
 
     private fun String.urlEncoded(): String =
@@ -176,6 +260,14 @@ class WpComContentRepository(
         }
 
     private companion object {
-        const val API_BASE = "https://public-api.wordpress.com/rest/v1.1"
+        const val POSTS_API_BASE = "https://public-api.wordpress.com/wp/v2"
+        const val VIDEOS_API_BASE = "https://public-api.wordpress.com/rest/v1.1"
     }
 }
+
+internal fun contentLanguagesFromTerms(terms: List<TermDto>): List<ContentLanguage> =
+    terms
+        .filter { it.name.isNotBlank() && it.slug.isNotBlank() }
+        .distinctBy { it.id }
+        .map { ContentLanguage(id = it.id, name = it.name, slug = it.slug) }
+        .sortedBy { it.name.lowercase() }
