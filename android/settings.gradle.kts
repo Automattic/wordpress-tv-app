@@ -22,8 +22,9 @@ dependencyResolutionManagement {
 
 rootProject.name = "WordPressTV"
 
-// Two modules, one seam — mirrors the Apple side:
-//   :core  → UI-free data layer (the WordPressTVCore counterpart)
-//   :app   → the Google TV app; all Compose UI lives here
-include(":core")
+// Shared data/domain lives in one Kotlin Multiplatform Gradle module. The
+// Google TV app consumes its Android variant; the tvOS app links the native
+// framework produced from the same source set.
+include(":shared")
+project(":shared").projectDir = file("../shared")
 include(":app")

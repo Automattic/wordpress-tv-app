@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import WordPressTVCore
 
 /// One video's resume point. Persisted locally (no server watch-history exists),
 /// so Continue Watching is per-device. Carries just enough to render a card and

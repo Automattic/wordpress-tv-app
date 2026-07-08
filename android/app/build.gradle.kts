@@ -70,7 +70,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":core"))
+    implementation(project(":shared"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -97,7 +97,7 @@ dependencies {
     implementation(libs.zxing.core)
     implementation(libs.kotlinx.coroutines.android)
 
-    // The broker client + session store talk JSON over HTTP, like :core does.
+    // The broker client + session store talk JSON over HTTP, like :shared does.
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
 }

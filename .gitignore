@@ -6,3 +6,7 @@
 
 # Local working notes (not part of the public repo)
 spec/
+
+# Shared Kotlin Multiplatform build output
+shared/build/
+shared/.gradle/

@@ -74,7 +74,7 @@ data class PlaybackRequest(
 /**
  * Full-screen player with **custom Compose-for-TV controls** (the stock Media3
  * `PlayerView` controller is phone-oriented and looks dated on a 10-foot screen).
- * `:core` resolved the [PlaybackAsset.url]; ExoPlayer plays it, resumes from the
+ * `:shared` resolved the [PlaybackAsset.url]; ExoPlayer plays it, resumes from the
  * saved position, and reports progress back to the [WatchProgressStore] so
  * Continue Watching stays current. A Compose overlay draws the transport: title,
  * big play/pause, a scrubber, and times.

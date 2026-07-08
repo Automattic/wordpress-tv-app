@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import WordPressTVCore
 
 /// Owns the WordPress.com sign-in state for the whole app.
 ///

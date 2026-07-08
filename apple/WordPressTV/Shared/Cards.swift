@@ -1,5 +1,4 @@
 import SwiftUI
-import WordPressTVCore
 
 // The card vocabulary shared across Home, category grids, and search: a poster
 // primitive plus the three card shapes in the design — landscape video card,
