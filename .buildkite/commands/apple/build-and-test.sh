@@ -5,6 +5,12 @@
 # from Gradle. The Ruby/Fastlane commands below must run from `apple/`.
 cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && cd apple
 
+echo "--- :java: Setting up JDK 21"
+brew install --cask temurin@21
+export JAVA_HOME="$(/usr/libexec/java_home -v 21)"
+export PATH="$JAVA_HOME/bin:$PATH"
+java --version
+
 echo "--- :ruby: Setting up Ruby tools"
 install_gems
 
