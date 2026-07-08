@@ -1,5 +1,4 @@
 import SwiftUI
-import WordPressTVCore
 
 /// The app shell: a persistent top nav (the design's pill bar) over a body that
 /// swaps between the railed Home, a category grid, flagship-camp drill-ins, and

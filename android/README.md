@@ -16,19 +16,18 @@ A native **Android TV / Google TV** app for browsing and watching [WordPress.tv]
   signed in to public WordPress.tv only and never see a8c.tv.
 - **Account** avatar + log out, **session persistence** across launches.
 
-## Shape — two modules, one seam
-
-Mirrors the Apple side (`WordPressTV` app target + `WordPressTVCore` package):
+## Shape — shared data/domain, platform UI
 
 ```
+shared/
+  src/commonMain/  ContentSource, Video, PlaybackAsset, Account, CategoryRef,
+                   ContentRepository, WpComContentRepository, Mapping, Html,
+                   wire DTOs, AuthTokenProvider
+  src/androidMain/ Android HTTP engine for the shared repository
+  src/tvosMain/    Darwin/tvOS HTTP engine for the shared repository
+
 android/
   settings.gradle.kts · build.gradle.kts · gradle/libs.versions.toml   version catalog
-  core/      :core — UI-free data layer (the WordPressTVCore counterpart). Plain
-             Kotlin/JVM: no Android, no Compose. Resolves URLs + maps WP.com REST
-             JSON to domain types. Unit-tested on the JVM.
-    domain/  ContentSource, Video, PlaybackAsset, Account, CategoryRef
-    data/    ContentRepository (+ WpComContentRepository), Mapping, Html, wire DTOs,
-             AuthTokenProvider
   app/       :app — all the UI. Jetpack Compose for TV (androidx.tv.material3),
              Media3/ExoPlayer playback, Coil posters, ZXing QR, DataStore session.
     MainActivity · WordPressTvApp (composition root)
@@ -36,14 +35,14 @@ android/
 ```
 
 The seam is **`ContentRepository`**: the app calls it and gets domain types + a
-`PlaybackAsset` (a ready-to-play URL + metadata). **`:core` resolves the URL; the
-app feeds it to ExoPlayer.** `:core` never imports Compose or Media3.
+`PlaybackAsset` (a ready-to-play URL + metadata). **`:shared` resolves the URL; the
+app feeds it to ExoPlayer.** `:shared` never imports Compose or Media3.
 
 ## Build & run
 
 ```sh
-# Unit tests (the :core data layer) + debug APK
-./gradlew :core:test :app:assembleDebug
+# Shared data/domain tests + debug APK
+./gradlew :shared:testDebugUnitTest :app:assembleDebug
 
 # Install on a running Google TV emulator / device
 ./gradlew :app:installDebug
@@ -63,6 +62,6 @@ default. Point it at a local tunnel to develop against a broker on your machine
 ## CI
 
 [`.buildkite/commands/android/build-and-test.sh`](../.buildkite/commands/android/build-and-test.sh)
-runs `:core:test` + `:app:assembleDebug`. It expects a Linux agent with the
+runs `:shared:testDebugUnitTest` + `:app:assembleDebug`. It expects a Linux agent with the
 Android SDK (`queue: android` in [`../.buildkite/pipeline.yml`](../.buildkite/pipeline.yml)) —
 Gradle doesn't need the macOS fleet.

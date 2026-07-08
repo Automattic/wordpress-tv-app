@@ -1,6 +1,5 @@
 import SwiftUI
 import Observation
-import WordPressTVCore
 
 /// What a feed screen is showing. All three resolve to the same posts endpoint
 /// via `ContentRepository`, differing only in filter.

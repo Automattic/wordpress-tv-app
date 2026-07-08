@@ -1,6 +1,5 @@
 import SwiftUI
 import AVKit
-import WordPressTVCore
 
 /// Everything the player needs for one presentation: the resolved asset, the
 /// `Video` it came from (so progress can be recorded), and where to resume.

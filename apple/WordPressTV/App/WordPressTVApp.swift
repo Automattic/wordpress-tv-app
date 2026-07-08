@@ -1,5 +1,4 @@
 import SwiftUI
-import WordPressTVCore
 
 @main
 struct WordPressTVApp: App {

@@ -1,6 +1,5 @@
 import SwiftUI
 import Observation
-import WordPressTVCore
 
 /// The railed landing screen from the design: stacked horizontal shelves —
 /// Continue Watching (when the viewer has any), the curated Flagship WordCamps,

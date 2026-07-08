@@ -1,5 +1,4 @@
 import SwiftUI
-import WordPressTVCore
 
 /// The app's curated browse structure: the top-nav categories and the flagship
 /// WordCamps shelf. Both are deliberately hand-picked rather than pulled from

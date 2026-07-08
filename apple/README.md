@@ -20,10 +20,10 @@ open WordPressTV.xcodeproj
 
 Pick an **Apple TV** simulator and hit Run. The app launches, fetches Latest, and you can focus a video and play it.
 
-Run the data-layer tests from the command line (they run on the Mac host — Core is pure Foundation):
+Run the shared data/domain tests from the command line:
 
 ```sh
-cd WordPressTVCore && swift test
+cd ../android && ./gradlew :shared:allTests
 ```
 
 ## Build & test with Fastlane
@@ -32,26 +32,30 @@ cd WordPressTVCore && swift test
 
 ```sh
 bundle install            # once, installs Fastlane from the Gemfile
-bundle exec fastlane test   # run the WordPressTVCore unit tests
+bundle exec fastlane test   # run the shared KMP data/domain tests
 bundle exec fastlane build  # build the app for the tvOS Simulator (no signing)
 ```
 
 ## How it's put together
 
-Two modules with a single seam between them:
+The tvOS target owns SwiftUI and uses a thin Swift adapter over the shared KMP
+framework:
 
 ```
-WordPressTVCore/        SPM package — NO UI (never imports SwiftUI / AVKit)
-  Domain/               Video, ContentSource, CategoryRef, PlaybackAsset
-  Data/                 ContentRepository (protocol + WP.com impl), wire DTOs, mapping
-  Sources.swift         the single registered source (wordpress.tv)
+../shared/              Kotlin Multiplatform data/domain module
+  src/commonMain/       ContentRepository, domain models, mapping, WP.com REST logic
+  src/tvosMain/         Darwin/tvOS HTTP engine
 WordPressTV/            thin tvOS app target — ALL SwiftUI lives here
   App/                  @main entry + composition root
-  Latest/               the grid screen + its view model
+  Shared/SharedCore.swift Swift adapter over WordPressTVSharedCore.framework
   Player/               AVPlayer presentation
 ```
 
-The seam is [`ContentRepository`](WordPressTVCore/Sources/WordPressTVCore/Data/ContentRepository.swift). The app asks it for domain types and a `PlaybackAsset` — a ready-to-play absolute URL plus metadata. **Core resolves the URL; the app feeds it to AVPlayer.** Core never imports AVKit, so the data layer stays portable and unit-testable without a UI.
+The seam is `ContentRepository`. The app asks it for domain types and a
+`PlaybackAsset` — a ready-to-play absolute URL plus metadata. **The shared KMP
+module resolves the URL; the app feeds it to AVPlayer.** The shared module never
+imports SwiftUI or AVKit, so the data layer stays portable and unit-testable
+without UI.
 
 `ContentRepository` declares the full content contract; today only `listLatest` and `resolvePlayback` are implemented. `listCategories`, `listByCategory`, and `search` throw `RepositoryError.notImplemented` until their slices land.
 
@@ -64,12 +68,14 @@ The seam is [`ContentRepository`](WordPressTVCore/Sources/WordPressTVCore/Data/C
 The app target owns all SwiftUI. A new screen typically:
 
 1. Takes a `ContentRepository` (and a `ContentSource`) by initializer — never a concrete type.
-2. Wraps its data calls in an `@Observable` view model exposing a simple state enum (see [`LatestViewModel`](WordPressTV/Latest/LatestViewModel.swift)).
+2. Wraps its data calls in an `@Observable` view model exposing a simple state enum (see [`VideoFeedViewModel`](WordPressTV/Shared/VideoFeed.swift)).
 3. Renders domain types directly.
 
 To develop offline, swap the repository in the [composition root](WordPressTV/App/WordPressTVApp.swift) for a fake conforming to `ContentRepository`.
 
-To add data: implement one of the stubbed methods in [`WPComContentRepository`](WordPressTVCore/Sources/WordPressTVCore/Data/WPComContentRepository.swift), map its wire shape in `Mapping.swift`, and cover it with a fixture-backed test.
+To add data: implement it in `shared/src/commonMain/.../WpComContentRepository.kt`,
+map its wire shape in `Mapping.kt`, and cover it with a fixture-backed common
+test.
 
 ## License
 

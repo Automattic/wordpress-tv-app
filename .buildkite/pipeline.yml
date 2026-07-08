@@ -40,7 +40,7 @@ steps:
 
   # ---------------------------------------------------------------------------
   # 🤖 Android (Google TV) — android/
-  # Runs the :core unit tests and assembles the debug APK with Gradle. Needs a
+  # Runs shared Android unit tests and assembles the debug APK with Gradle. Needs a
   # Linux agent with the Android SDK — Gradle does not need the macOS fleet. If
   # your Buildkite doesn't have an `android` queue yet, point this at one that
   # has the SDK (e.g. `queue: mac`) until it does.

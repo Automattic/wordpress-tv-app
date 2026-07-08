@@ -1,5 +1,4 @@
 import Foundation
-import WordPressTVCore
 
 /// Resolves the signed-in user's profile from WordPress.com.
 ///

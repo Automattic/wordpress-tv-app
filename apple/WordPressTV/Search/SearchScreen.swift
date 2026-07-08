@@ -1,5 +1,4 @@
 import SwiftUI
-import WordPressTVCore
 
 /// Search over the current source. A focusable field brings up the tvOS
 /// keyboard; submitting runs the query and rebuilds the results grid (the

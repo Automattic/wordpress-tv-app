@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'shellwords'
 
 default_platform(:tvos)
 
@@ -8,7 +9,7 @@ XCODE_PROJECT_PATH = File.join(PROJECT_ROOT_FOLDER, 'WordPressTV.xcodeproj')
 
 APP_SCHEME = 'WordPressTV'
 APP_IDENTIFIER = 'com.automattic.wordpresstv'
-CORE_PACKAGE_PATH = 'WordPressTVCore'
+SHARED_GRADLE_PROJECT_PATH = File.expand_path('../android', PROJECT_ROOT_FOLDER)
 
 # The App Store profile name match generates — note the trailing platform suffix
 # that newer match appends. Mirrors PROVISIONING_PROFILE_SPECIFIER in the project.
@@ -38,12 +39,9 @@ before_all do
 end
 
 platform :tvos do
-  desc 'Run the WordPressTVCore unit tests (pure Foundation — runs on the host)'
+  desc 'Run the shared KMP data/domain tests'
   lane :test do
-    spm(
-      command: 'test',
-      package_path: CORE_PACKAGE_PATH
-    )
+    sh("cd #{SHARED_GRADLE_PROJECT_PATH.shellescape} && ./gradlew --no-daemon --stacktrace :shared:allTests")
   end
 
   desc 'Build the WordPressTV app for the tvOS Simulator (no code signing)'
