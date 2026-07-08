@@ -23,7 +23,7 @@ Pick an **Apple TV** simulator and hit Run. The app launches, fetches Latest, an
 Run the shared data/domain tests from the command line:
 
 ```sh
-cd ../android && ./gradlew :shared:allTests
+cd ../android && ./gradlew :shared:tvosSimulatorArm64Test
 ```
 
 ## Build & test with Fastlane

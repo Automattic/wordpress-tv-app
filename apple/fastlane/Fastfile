@@ -41,7 +41,7 @@ end
 platform :tvos do
   desc 'Run the shared KMP data/domain tests'
   lane :test do
-    sh("cd #{SHARED_GRADLE_PROJECT_PATH.shellescape} && ./gradlew --no-daemon --stacktrace :shared:allTests")
+    sh("cd #{SHARED_GRADLE_PROJECT_PATH.shellescape} && ./gradlew --no-daemon --stacktrace :shared:tvosSimulatorArm64Test")
   end
 
   desc 'Build the WordPressTV app for the tvOS Simulator (no code signing)'
