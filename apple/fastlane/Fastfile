@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-require 'English'
 require 'shellwords'
 
 default_platform(:tvos)
@@ -11,21 +10,6 @@ XCODE_PROJECT_PATH = File.join(PROJECT_ROOT_FOLDER, 'WordPressTV.xcodeproj')
 APP_SCHEME = 'WordPressTV'
 APP_IDENTIFIER = 'com.automattic.wordpresstv'
 SHARED_GRADLE_PROJECT_PATH = File.expand_path('../android', PROJECT_ROOT_FOLDER)
-
-def java_home_21
-  return ENV['JAVA_HOME_21'] if ENV['JAVA_HOME_21'] && !ENV['JAVA_HOME_21'].empty?
-  return unless File.executable?('/usr/libexec/java_home')
-
-  path = `/usr/libexec/java_home -v 21 2>/dev/null`.strip
-  $CHILD_STATUS.success? && !path.empty? ? path : nil
-end
-
-def gradle_env_prefix
-  java_home = java_home_21
-  return '' unless java_home
-
-  "export JAVA_HOME=#{java_home.shellescape}; export PATH=#{File.join(java_home, 'bin').shellescape}:$PATH;"
-end
 
 # The App Store profile name match generates — note the trailing platform suffix
 # that newer match appends. Mirrors PROVISIONING_PROFILE_SPECIFIER in the project.
@@ -57,7 +41,7 @@ end
 platform :tvos do
   desc 'Run the shared KMP data/domain tests'
   lane :test do
-    sh("cd #{SHARED_GRADLE_PROJECT_PATH.shellescape} && #{gradle_env_prefix} ./gradlew --no-daemon --stacktrace :shared:allTests")
+    sh("cd #{SHARED_GRADLE_PROJECT_PATH.shellescape} && ./gradlew --no-daemon --stacktrace :shared:allTests")
   end
 
   desc 'Build the WordPressTV app for the tvOS Simulator (no code signing)'

@@ -508,7 +508,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nif [ -x /usr/libexec/java_home ]; then\n  JAVA_21_HOME=\"$(/usr/libexec/java_home -v 21 2>/dev/null || true)\"\n  if [ -n \"$JAVA_21_HOME\" ]; then\n    export JAVA_HOME=\"$JAVA_21_HOME\"\n    export PATH=\"$JAVA_HOME/bin:$PATH\"\n  fi\nfi\ncd \"$SRCROOT/../android\"\n./gradlew --no-daemon :shared:syncAppleFrameworkForXcode\n";
+			shellScript = "set -euo pipefail\ncd \"$SRCROOT/../android\"\n./gradlew --no-daemon :shared:syncAppleFrameworkForXcode\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 	};
