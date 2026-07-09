@@ -5,6 +5,25 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// Marketing version (`versionName`) comes from the latest git tag — e.g. `1.2.3`
+// or `v1.2.3`, the leading `v` is optional — falling back to 0.0.1 when the repo
+// has no tags yet. Mirrors the iOS marketing version (apple/fastlane/Fastfile) so
+// both artifacts share one source of truth: the tag. The build number
+// (`versionCode`) stays the CI build number, injected via `-PversionCode`.
+fun latestGitTagVersionName(): String {
+    val tag = try {
+        val process = ProcessBuilder("git", "describe", "--tags", "--abbrev=0")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+        val output = process.inputStream.bufferedReader().readText().trim()
+        if (process.waitFor() == 0) output else null
+    } catch (e: Exception) {
+        null
+    }
+    return tag?.removePrefix("v")?.takeIf { it.isNotBlank() } ?: "0.0.1"
+}
+
 android {
     namespace = "com.automattic.wordpresstv"
     compileSdk = 35
@@ -16,7 +35,7 @@ android {
         // Build number injected by the release build (`-PversionCode`), like the
         // iOS build number; falls back to 1 for local builds.
         versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 1
-        versionName = "1.0"
+        versionName = latestGitTagVersionName()
 
         // Broker location — the /pairing routes on wordpress.tv (wpcom), mirroring
         // the iOS app's `BrokerBaseURL` Info.plist default. Configured once here;

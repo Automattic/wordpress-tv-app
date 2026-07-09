@@ -348,6 +348,7 @@
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 0.0.1;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
@@ -442,6 +443,7 @@
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 0.0.1;
 				DEVELOPMENT_TEAM = PZYM8XX95Q;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
