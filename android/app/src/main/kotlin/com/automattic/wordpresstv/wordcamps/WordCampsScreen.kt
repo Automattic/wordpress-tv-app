@@ -105,9 +105,10 @@ fun WordCampsScreen(
                 title = event.name,
                 repository = repository,
                 source = source,
-                query = VideoQuery.Event(event),
+                query = VideoQuery.Event(event, applyLanguageFilter = true),
                 onPlay = onPlay,
                 onAuthRequired = onAuthRequired,
+                hideWhenEmpty = true,
             )
         }
 
@@ -135,10 +136,12 @@ private fun QueryVideoRail(
     query: VideoQuery,
     onPlay: (Video, ContentSource) -> Unit,
     onAuthRequired: () -> Unit,
+    hideWhenEmpty: Boolean = false,
 ) {
     val model = remember(repository, source.id, query) { VideoFeedViewModel(repository, source, query) }
     LaunchedEffect(repository, source.id, query) { model.load() }
     val scope = rememberCoroutineScope()
+    if (hideWhenEmpty && model.state == VideoFeedViewModel.State.Empty) return
 
     RailSection(title) {
         when (val state = model.state) {

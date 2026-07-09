@@ -181,7 +181,7 @@ struct ContentRootView: View {
                 VideoGrid(
                     repository: repository,
                     source: Sources.wordpressTV,
-                    query: .event(event),
+                    query: .event(event, applyLanguageFilter: false),
                     onPlay: play,
                     onAuthRequired: routeToPairing
                 )

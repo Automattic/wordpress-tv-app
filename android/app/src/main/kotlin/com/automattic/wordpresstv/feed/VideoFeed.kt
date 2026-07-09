@@ -52,7 +52,7 @@ import androidx.tv.material3.Text
 sealed interface VideoQuery {
     data object Latest : VideoQuery
     data class Category(val category: CategoryRef) : VideoQuery
-    data class Event(val event: ContentEvent) : VideoQuery
+    data class Event(val event: ContentEvent, val applyLanguageFilter: Boolean = false) : VideoQuery
     data class Search(val term: String) : VideoQuery
 }
 
@@ -105,7 +105,7 @@ class VideoFeedViewModel(
             source = source,
             event = query.event,
             page = 1,
-            applyLanguageFilter = false,
+            applyLanguageFilter = query.applyLanguageFilter,
         )
         is VideoQuery.Search -> repository.search(source, query.term, page = 1)
     }

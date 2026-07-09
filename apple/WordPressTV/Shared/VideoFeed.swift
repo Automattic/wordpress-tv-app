@@ -6,7 +6,7 @@ import Observation
 enum VideoQuery: Equatable {
     case latest
     case category(CategoryRef)
-    case event(ContentEvent)
+    case event(ContentEvent, applyLanguageFilter: Bool)
     case search(String)
 }
 
@@ -65,12 +65,12 @@ final class VideoFeedViewModel {
                 page: 1,
                 applyLanguageFilter: true
             )
-        case .event(let event):
+        case .event(let event, let applyLanguageFilter):
             return try await repository.listByEvent(
                 source: source,
                 event: event,
                 page: 1,
-                applyLanguageFilter: false
+                applyLanguageFilter: applyLanguageFilter
             )
         case .search(let term):
             return try await repository.search(source: source, query: term, page: 1)
@@ -218,10 +218,11 @@ struct WordCampsView: View {
                 ForEach(events) { event in
                     QueryVideoRail(
                         title: event.name,
-                        model: VideoFeedViewModel(repository: repository, source: source, query: .event(event)),
+                        model: VideoFeedViewModel(repository: repository, source: source, query: .event(event, applyLanguageFilter: true)),
                         source: source,
                         onPlay: onPlay,
-                        onAuthRequired: onAuthRequired
+                        onAuthRequired: onAuthRequired,
+                        hideWhenEmpty: true
                     )
                 }
 
@@ -280,26 +281,33 @@ private struct QueryVideoRail: View {
     let source: ContentSource
     let onPlay: (Video, ContentSource) -> Void
     let onAuthRequired: () -> Void
+    let hideWhenEmpty: Bool
 
     init(
         title: String,
         model: VideoFeedViewModel,
         source: ContentSource,
         onPlay: @escaping (Video, ContentSource) -> Void,
-        onAuthRequired: @escaping () -> Void
+        onAuthRequired: @escaping () -> Void,
+        hideWhenEmpty: Bool = false
     ) {
         self.title = title
         _model = State(initialValue: model)
         self.source = source
         self.onPlay = onPlay
         self.onAuthRequired = onAuthRequired
+        self.hideWhenEmpty = hideWhenEmpty
     }
 
     var body: some View {
-        RailSection(title: title) {
-            content
+        if hideWhenEmpty, case .empty = model.state {
+            EmptyView()
+        } else {
+            RailSection(title: title) {
+                content
+            }
+            .task { await model.load() }
         }
-        .task { await model.load() }
     }
 
     @ViewBuilder
