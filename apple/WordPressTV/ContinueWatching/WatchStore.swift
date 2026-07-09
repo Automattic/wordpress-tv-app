@@ -1,28 +1,27 @@
 import Foundation
 import Observation
+import WordPressTVSharedCore
+
+private typealias SharedWatchProgress = WordPressTVSharedCore.WatchProgress
+private typealias SharedWatchProgressStoreCore = WordPressTVSharedCore.WatchProgressStoreCore
 
 /// One video's resume point. Persisted locally (no server watch-history exists),
-/// so Continue Watching is per-device. Carries just enough to render a card and
-/// rebuild a playable `Video` without another network round-trip.
-struct WatchProgress: Codable, Identifiable, Equatable {
-    let videoGuid: String
-    let sourceID: String
-    let title: String
-    let posterURLString: String?
-    /// The VideoPress `metadata_token` for a private (a8c.tv) video; `nil` for
-    /// public wordpress.tv. Needed to re-resolve the poster/stream on resume.
-    let playbackToken: String?
-    var positionSeconds: Double
-    var durationSeconds: Double
-    var updatedAt: Date
+/// so Continue Watching is per-device. Backed by the shared Kotlin model so tvOS
+/// and Android use the same fields, units, JSON format, and pruning rules.
+struct WatchProgress: Identifiable, Equatable {
+    fileprivate let shared: SharedWatchProgress
 
+    var videoGuid: String { shared.videoGuid }
+    var sourceID: String { shared.sourceId }
+    var title: String { shared.title }
+    var posterURLString: String? { shared.posterUrl }
+    var playbackToken: String? { shared.playbackToken }
+    var positionSeconds: Double { Double(shared.positionMs) / 1_000 }
+    var durationSeconds: Double { Double(shared.durationMs) / 1_000 }
     var id: String { videoGuid }
 
     /// 0…1 watched fraction, clamped. Drives the resume bar under the card.
-    var fractionComplete: Double {
-        guard durationSeconds > 0 else { return 0 }
-        return min(max(positionSeconds / durationSeconds, 0), 1)
-    }
+    var fractionComplete: Double { shared.fractionComplete }
 
     var posterURL: URL? { posterURLString.flatMap(URL.init(string:)) }
 
@@ -39,83 +38,114 @@ struct WatchProgress: Codable, Identifiable, Equatable {
             playbackToken: playbackToken
         )
     }
+
+    static func == (lhs: WatchProgress, rhs: WatchProgress) -> Bool {
+        lhs.videoGuid == rhs.videoGuid &&
+        lhs.sourceID == rhs.sourceID &&
+        lhs.title == rhs.title &&
+        lhs.posterURLString == rhs.posterURLString &&
+        lhs.playbackToken == rhs.playbackToken &&
+        lhs.positionSeconds == rhs.positionSeconds &&
+        lhs.durationSeconds == rhs.durationSeconds
+    }
 }
 
-/// Owns the Continue Watching list. Records progress as the player reports it,
-/// drops items once they're essentially finished, and persists to `UserDefaults`
-/// as a single JSON blob.
+/// Owns the Continue Watching list. Platform persistence/observation stays here;
+/// shared Kotlin owns record/remove/poster-update rules and JSON encoding.
 @MainActor
 @Observable
 final class WatchProgressStore {
     /// In-progress videos, most recently watched first.
     private(set) var items: [WatchProgress] = []
 
-    /// Below this many seconds we treat playback as "not really started" and
-    /// don't surface a resume point (avoids cluttering the shelf with 3-second
-    /// taps). Above `finishedFraction` we treat it as watched and drop it.
-    private let minimumSeconds: Double = 15
-    private let finishedFraction: Double = 0.95
-    private let maxItems = 20
-
     private let defaults: UserDefaults
     private let storageKey = "continueWatching.v1"
+    private let core: SharedWatchProgressStoreCore
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        load()
+
+        if let encoded = defaults.string(forKey: storageKey) {
+            self.core = SharedWatchProgressStoreCore(encodedItems: encoded)
+        } else if let legacy = Self.loadLegacyItems(defaults: defaults, storageKey: storageKey) {
+            self.core = SharedWatchProgressStoreCore(initialItems: legacy)
+            defaults.set(core.encodedItems(), forKey: storageKey)
+        } else {
+            self.core = SharedWatchProgressStoreCore(encodedItems: nil)
+        }
+
+        syncItems()
     }
 
     /// Look up an existing resume point (used to seek on play).
     func progress(forGuid guid: String) -> WatchProgress? {
-        items.first { $0.videoGuid == guid }
+        core.progress(videoGuid: guid).map(WatchProgress.init(shared:))
     }
 
-    /// Record where the viewer is in `video`. Upserts, re-sorts newest-first,
-    /// and evicts once finished. A no-op below `minimumSeconds`.
+    /// Record where the viewer is in `video`. The shared store guards the "barely
+    /// started" and "essentially finished" cases.
     func record(video: Video, position: Double, duration: Double) {
-        guard duration > 0, position >= minimumSeconds else { return }
-
-        // Finished (or all but) — clear any existing entry and stop tracking.
-        if position / duration >= finishedFraction {
-            remove(guid: video.videoGuid)
-            return
+        guard position.isFinite, duration.isFinite else { return }
+        let positionMs = Int64(position * 1_000)
+        let durationMs = Int64(duration * 1_000)
+        if core.record(video: video.shared, positionMs: positionMs, durationMs: durationMs) {
+            syncAndPersist()
         }
+    }
 
-        var next = items.filter { $0.videoGuid != video.videoGuid }
-        next.insert(
-            WatchProgress(
-                videoGuid: video.videoGuid,
-                sourceID: video.sourceID,
-                title: video.title,
-                posterURLString: video.posterUrl?.absoluteString,
-                playbackToken: video.playbackToken,
-                positionSeconds: position,
-                durationSeconds: duration,
-                updatedAt: Date()
-            ),
-            at: 0
-        )
-        items = Array(next.prefix(maxItems))
-        persist()
+    func setPosterURL(guid: String, posterURL: URL) {
+        if core.setPosterUrl(videoGuid: guid, posterUrl: posterURL.absoluteString) {
+            syncAndPersist()
+        }
     }
 
     func remove(guid: String) {
-        let filtered = items.filter { $0.videoGuid != guid }
-        guard filtered.count != items.count else { return }
-        items = filtered
+        if core.remove(videoGuid: guid) {
+            syncAndPersist()
+        }
+    }
+
+    private func syncAndPersist() {
+        syncItems()
         persist()
     }
 
-    // MARK: Persistence
-
-    private func persist() {
-        guard let data = try? JSONEncoder().encode(items) else { return }
-        defaults.set(data, forKey: storageKey)
+    private func syncItems() {
+        items = core.items.map(WatchProgress.init(shared:))
     }
 
-    private func load() {
+    private func persist() {
+        defaults.set(core.encodedItems(), forKey: storageKey)
+    }
+
+    private static func loadLegacyItems(defaults: UserDefaults, storageKey: String) -> [SharedWatchProgress]? {
         guard let data = defaults.data(forKey: storageKey),
-              let stored = try? JSONDecoder().decode([WatchProgress].self, from: data) else { return }
-        items = stored.sorted { $0.updatedAt > $1.updatedAt }
+              let stored = try? JSONDecoder().decode([LegacyWatchProgress].self, from: data) else {
+            return nil
+        }
+        return stored.sorted { $0.updatedAt > $1.updatedAt }.map(\.shared)
+    }
+}
+
+private struct LegacyWatchProgress: Codable {
+    let videoGuid: String
+    let sourceID: String
+    let title: String
+    let posterURLString: String?
+    let playbackToken: String?
+    var positionSeconds: Double
+    var durationSeconds: Double
+    var updatedAt: Date
+
+    var shared: SharedWatchProgress {
+        SharedWatchProgress(
+            videoGuid: videoGuid,
+            sourceId: sourceID,
+            title: title,
+            posterUrl: posterURLString,
+            playbackToken: playbackToken,
+            positionMs: Int64(positionSeconds * 1_000),
+            durationMs: Int64(durationSeconds * 1_000)
+        )
     }
 }

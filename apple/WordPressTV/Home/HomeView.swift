@@ -65,7 +65,13 @@ struct HomeView: View {
         ScrollView(.horizontal) {
             LazyHStack(alignment: .top, spacing: 40) {
                 ForEach(store.items) { item in
-                    ContinueWatchingCard(progress: item) {
+                    ContinueWatchingCard(
+                        progress: item,
+                        resolvePoster: continueWatchingPoster,
+                        onPosterResolved: { guid, posterURL in
+                            store.setPosterURL(guid: guid, posterURL: posterURL)
+                        }
+                    ) {
                         onPlay(item.video, Sources.source(withID: item.sourceID))
                     }
                 }
@@ -73,6 +79,13 @@ struct HomeView: View {
             .padding(.horizontal, 80)
             .padding(.vertical, 20)
         }
+    }
+
+    private func continueWatchingPoster(_ progress: WatchProgress) async -> URL? {
+        await repository.posterURL(
+            source: Sources.source(withID: progress.sourceID),
+            video: progress.video
+        )
     }
 
     private var flagshipRail: some View {
