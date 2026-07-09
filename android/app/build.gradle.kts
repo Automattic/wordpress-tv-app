@@ -5,23 +5,16 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-// Marketing version (`versionName`) comes from the latest git tag — e.g. `1.2.3`
-// or `v1.2.3`, the leading `v` is optional — falling back to 0.0.1 when the repo
-// has no tags yet. Mirrors the iOS marketing version (apple/fastlane/Fastfile) so
-// both artifacts share one source of truth: the tag. The build number
-// (`versionCode`) stays the CI build number, injected via `-PversionCode`.
-fun latestGitTagVersionName(): String {
-    val tag = try {
-        val process = ProcessBuilder("git", "describe", "--tags", "--abbrev=0")
-            .directory(rootDir)
-            .redirectErrorStream(true)
-            .start()
-        val output = process.inputStream.bufferedReader().readText().trim()
-        if (process.waitFor() == 0) output else null
-    } catch (e: Exception) {
-        null
-    }
-    return tag?.removePrefix("v")?.takeIf { it.isNotBlank() } ?: "0.0.1"
+// Marketing version (`versionName`) comes from the repo-root `VERSION` file — a
+// single line like `1.2.3`. Bump it by hand when cutting a release. Mirrors the iOS
+// marketing version (apple/fastlane/Fastfile) so both artifacts share one source of
+// truth: the `VERSION` file. The build number (`versionCode`) stays the CI build
+// number, injected via `-PversionCode`.
+fun marketingVersion(): String {
+    val versionFile = rootDir.parentFile.resolve("VERSION")
+    return versionFile.takeIf { it.exists() }
+        ?.readText()?.trim()?.removePrefix("v")?.takeIf { it.isNotBlank() }
+        ?: "0.0.1"
 }
 
 android {
@@ -35,7 +28,7 @@ android {
         // Build number injected by the release build (`-PversionCode`), like the
         // iOS build number; falls back to 1 for local builds.
         versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 1
-        versionName = latestGitTagVersionName()
+        versionName = marketingVersion()
 
         // Broker location — the /pairing routes on wordpress.tv (wpcom), mirroring
         // the iOS app's `BrokerBaseURL` Info.plist default. Configured once here;
