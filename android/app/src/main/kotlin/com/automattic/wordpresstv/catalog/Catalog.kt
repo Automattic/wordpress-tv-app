@@ -25,9 +25,6 @@ object Catalog {
         NavCategory(title = "How To", slug = "how-to"),
     )
 
-    /** Number of recent WordCamp event taxonomy terms to show on Home. */
-    const val wordCampEventLimit: Int = 8
-
     private val eventPalettes: List<List<Color>> = listOf(
         listOf(Color(0xFF4B2FBF), Color(0xFF2A1170)),
         listOf(Color(0xFF0E5A70), Color(0xFF06303D)),

@@ -39,8 +39,8 @@ interface ContentRepository {
         applyLanguageFilter: Boolean = true,
     ): List<Video>
 
-    /** Recent WordCamp event terms from the WordPress.tv `event` taxonomy. */
-    suspend fun listWordCampEvents(source: ContentSource, limit: Int = 8): List<ContentEvent>
+    /** Latest flagship WordCamp event terms from the WordPress.tv `event` taxonomy. */
+    suspend fun listFlagshipWordCampEvents(source: ContentSource): List<ContentEvent>
 
     /** Videos in [event] for [source]. [page] is 1-based. */
     suspend fun listByEvent(

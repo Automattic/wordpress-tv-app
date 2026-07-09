@@ -14,9 +14,6 @@ enum Catalog {
         NavCategory(title: "How To", slug: "how-to"),
     ]
 
-    /// Number of recent WordCamp event taxonomy terms to show on Home.
-    static let wordCampEventLimit = 8
-
     /// Stable card palettes for event terms, selected from the event slug.
     static let eventPalettes: [[Color]] = [
         [Color(hex: 0x4B2FBF), Color(hex: 0x2A1170)],

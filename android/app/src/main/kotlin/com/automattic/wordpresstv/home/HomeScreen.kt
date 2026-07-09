@@ -29,7 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.automattic.wordpresstv.R
-import com.automattic.wordpresstv.catalog.Catalog
 import com.automattic.wordpresstv.catalog.sourceWithId
 import com.automattic.wordpresstv.continuewatching.WatchProgress
 import com.automattic.wordpresstv.continuewatching.WatchProgressStore
@@ -50,7 +49,7 @@ import androidx.tv.material3.Text
 
 /**
  * The railed landing screen from the design: stacked horizontal shelves —
- * Continue Watching (when the viewer has any), recent WordCamp events, and
+ * Continue Watching (when the viewer has any), flagship WordCamp events, and
  * Latest. Everything is live WordPress.tv content.
  * Mirrors the Apple `HomeView`.
  */
@@ -105,7 +104,7 @@ fun HomeScreen(
         }
 
         item {
-            RailSection(stringResource(R.string.recent_wordcamps)) {
+            RailSection(stringResource(R.string.flagship_wordcamps)) {
                 WordCampRail(
                     state = wordCampState,
                     resolveCover = resolveCover,
@@ -145,7 +144,7 @@ private sealed interface WordCampState {
 
 private suspend fun loadWordCampState(repository: ContentRepository, source: ContentSource): WordCampState =
     runCatching {
-        val events = repository.listWordCampEvents(source, Catalog.wordCampEventLimit)
+        val events = repository.listFlagshipWordCampEvents(source)
         if (events.isEmpty()) WordCampState.Empty else WordCampState.Loaded(events)
     }.getOrDefault(WordCampState.Failed)
 

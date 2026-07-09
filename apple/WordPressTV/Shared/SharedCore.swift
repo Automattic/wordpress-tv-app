@@ -88,7 +88,7 @@ protocol ContentRepository: Sendable {
         page: Int,
         applyLanguageFilter: Bool
     ) async throws -> [Video]
-    func listWordCampEvents(source: ContentSource, limit: Int) async throws -> [ContentEvent]
+    func listFlagshipWordCampEvents(source: ContentSource) async throws -> [ContentEvent]
     func listByEvent(
         source: ContentSource,
         event: ContentEvent,
@@ -109,7 +109,7 @@ extension ContentRepository {
         try await listByEvent(source: source, event: event, page: page, applyLanguageFilter: true)
     }
 
-    func listWordCampEvents(source: ContentSource, limit: Int) async throws -> [ContentEvent] { [] }
+    func listFlagshipWordCampEvents(source: ContentSource) async throws -> [ContentEvent] { [] }
 
     func listLanguages(source: ContentSource) async throws -> [ContentLanguage] { [] }
 
@@ -221,13 +221,12 @@ final class WPComContentRepository: ContentRepository, @unchecked Sendable {
         return videos.map(Video.init(shared:))
     }
 
-    func listWordCampEvents(source: ContentSource, limit: Int) async throws -> [ContentEvent] {
+    func listFlagshipWordCampEvents(source: ContentSource) async throws -> [ContentEvent] {
         let core = currentCore()
         let accessToken = await token(for: source)
         let events = try await mapErrors {
-            try await core.listWordCampEvents(
+            try await core.listFlagshipWordCampEvents(
                 source: source.shared,
-                limit: Int32(limit),
                 accessToken: accessToken
             )
         }

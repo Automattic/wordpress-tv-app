@@ -85,9 +85,13 @@ class MappingTest {
         )
     }
 
-    @Test fun mapsMainWordCampEventTermsFromApiOrder() {
+    @Test fun mapsLatestFlagshipWordCampEventTermsFromApiOrder() {
         val terms = listOf(
             TermDto(id = 40, name = "WordCamp Mannheim 2026", slug = "wordcamp-mannheim-2026", count = 18),
+            TermDto(id = 37, name = "WordCamp Europe 2025", slug = "wordcamp-europe-2025", count = 52),
+            TermDto(id = 36, name = "WordCamp US 2025", slug = "wordcamp-us-2025", count = 43),
+            TermDto(id = 35, name = "WordCamp Asia 2026", slug = "wordcamp-asia-2026", count = 42),
+            TermDto(id = 34, name = "WordCamp Europe 2026", slug = "wordcamp-europe-2026", count = 51),
             TermDto(
                 id = 30,
                 name = "WordCamp Europe 2026 Contributor Day Online",
@@ -100,8 +104,12 @@ class MappingTest {
         )
 
         assertEquals(
-            listOf(40L to "WordCamp Mannheim 2026"),
-            wordCampEventsFromTerms(terms).map { it.id to it.name },
+            listOf(
+                35L to "WordCamp Asia 2026",
+                34L to "WordCamp Europe 2026",
+                36L to "WordCamp US 2025",
+            ),
+            flagshipWordCampEventsFromTerms(terms).map { it.id to it.name },
         )
     }
 }

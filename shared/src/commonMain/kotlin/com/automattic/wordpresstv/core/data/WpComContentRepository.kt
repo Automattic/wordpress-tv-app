@@ -111,19 +111,18 @@ class WpComContentRepository(
         )
     }
 
-    override suspend fun listWordCampEvents(source: ContentSource, limit: Int): List<ContentEvent> =
-        listWordCampEvents(source, limit, accessToken = null)
+    override suspend fun listFlagshipWordCampEvents(source: ContentSource): List<ContentEvent> =
+        listFlagshipWordCampEvents(source, accessToken = null)
 
-    suspend fun listWordCampEvents(source: ContentSource, limit: Int, accessToken: String?): List<ContentEvent> {
-        if (limit <= 0) return emptyList()
+    suspend fun listFlagshipWordCampEvents(source: ContentSource, accessToken: String?): List<ContentEvent> {
         if (source.auth != ContentSource.Auth.NONE) return emptyList()
         termCacheLock.withLock {
-            eventCache[source.id]?.let { return it.take(limit) }
-            val events = wordCampEventsFromTerms(
-                fetchRecentEventTerms(source, accessToken, limit),
+            eventCache[source.id]?.let { return it }
+            val events = flagshipWordCampEventsFromTerms(
+                fetchRecentEventTerms(source, accessToken),
             )
             eventCache[source.id] = events
-            return events.take(limit)
+            return events
         }
     }
 
@@ -227,7 +226,6 @@ class WpComContentRepository(
     private suspend fun fetchRecentEventTerms(
         source: ContentSource,
         accessToken: String?,
-        targetEventCount: Int,
     ): List<TermDto> {
         val terms = mutableListOf<TermDto>()
         var page = 1
@@ -242,7 +240,7 @@ class WpComContentRepository(
             )
             if (pageTerms.isEmpty()) break
             terms += pageTerms
-            if (wordCampEventsFromTerms(terms).size >= targetEventCount) break
+            if (flagshipWordCampEventsFromTerms(terms).size >= FlagshipWordCampSeries.size) break
             page += 1
         }
         return terms
@@ -347,14 +345,27 @@ internal fun contentLanguagesFromTerms(terms: List<TermDto>): List<ContentLangua
         .map { ContentLanguage(id = it.id, name = it.name, slug = it.slug) }
         .sortedBy { it.name.lowercase() }
 
-private val WordCampEventSlug = Regex("""^wordcamp-.+-\d{4}$""")
+private val FlagshipWordCampSeries = listOf("asia", "europe", "us")
+private val FlagshipWordCampEventSlug = Regex("""^wordcamp-(${FlagshipWordCampSeries.joinToString("|")})-(\d{4})$""")
 
-internal fun wordCampEventsFromTerms(terms: List<TermDto>): List<ContentEvent> =
-    terms
-        .filter { term ->
-            term.name.isNotBlank() &&
-                WordCampEventSlug.matches(term.slug) &&
-                term.count > 0
+internal fun flagshipWordCampEventsFromTerms(terms: List<TermDto>): List<ContentEvent> {
+    data class Candidate(val term: TermDto, val year: Int)
+
+    val newestBySeries = mutableMapOf<String, Candidate>()
+    terms.forEach { term ->
+        if (term.name.isBlank() || term.count <= 0) return@forEach
+        val match = FlagshipWordCampEventSlug.matchEntire(term.slug) ?: return@forEach
+        val series = match.groupValues[1]
+        val year = match.groupValues[2].toIntOrNull() ?: return@forEach
+        val current = newestBySeries[series]
+        if (current == null || year > current.year || (year == current.year && term.id > current.term.id)) {
+            newestBySeries[series] = Candidate(term = term, year = year)
         }
-        .distinctBy { it.id }
-        .map { ContentEvent(id = it.id, name = it.name, slug = it.slug, videoCount = it.count) }
+    }
+
+    return FlagshipWordCampSeries.mapNotNull { series ->
+        newestBySeries[series]?.term?.let {
+            ContentEvent(id = it.id, name = it.name, slug = it.slug, videoCount = it.count)
+        }
+    }
+}

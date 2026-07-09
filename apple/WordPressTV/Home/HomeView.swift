@@ -2,7 +2,7 @@ import SwiftUI
 import Observation
 
 /// The railed landing screen from the design: stacked horizontal shelves —
-/// Continue Watching (when the viewer has any), recent WordCamp events, and
+/// Continue Watching (when the viewer has any), flagship WordCamp events, and
 /// Latest. Everything is live WordPress.tv content.
 struct HomeView: View {
     let repository: ContentRepository
@@ -54,7 +54,7 @@ struct HomeView: View {
                     }
                 }
 
-                RailSection(title: "Recent WordCamps") {
+                RailSection(title: "Flagship WordCamps") {
                     wordCampRail
                 }
 
@@ -125,10 +125,7 @@ struct HomeView: View {
     private func loadWordCampEvents() async {
         wordCampState = .loading
         do {
-            let events = try await repository.listWordCampEvents(
-                source: source,
-                limit: Catalog.wordCampEventLimit
-            )
+            let events = try await repository.listFlagshipWordCampEvents(source: source)
             wordCampState = events.isEmpty ? .empty : .loaded(events)
         } catch {
             wordCampState = .failed
