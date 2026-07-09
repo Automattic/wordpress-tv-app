@@ -120,14 +120,7 @@ class WpComContentRepository(
         termCacheLock.withLock {
             eventCache[source.id]?.let { return it.take(limit) }
             val events = wordCampEventsFromTerms(
-                fetchTerms(
-                    source = source,
-                    taxonomy = "event",
-                    search = "WordCamp",
-                    orderBy = "id",
-                    order = "desc",
-                    accessToken = accessToken,
-                ),
+                fetchRecentEventTerms(source, accessToken, limit),
             )
             eventCache[source.id] = events
             return events.take(limit)
@@ -231,22 +224,46 @@ class WpComContentRepository(
         }
     }
 
+    private suspend fun fetchRecentEventTerms(
+        source: ContentSource,
+        accessToken: String?,
+        targetEventCount: Int,
+    ): List<TermDto> {
+        val terms = mutableListOf<TermDto>()
+        var page = 1
+        while (page <= MAX_EVENT_TERM_PAGES) {
+            val pageTerms = fetchTerms(
+                source = source,
+                taxonomy = "event",
+                orderBy = "id",
+                order = "desc",
+                page = page,
+                accessToken = accessToken,
+            )
+            if (pageTerms.isEmpty()) break
+            terms += pageTerms
+            if (wordCampEventsFromTerms(terms).size >= targetEventCount) break
+            page += 1
+        }
+        return terms
+    }
+
     private suspend fun fetchTerms(
         source: ContentSource,
         taxonomy: String,
         slug: String? = null,
-        search: String? = null,
         orderBy: String? = null,
         order: String? = null,
         perPage: Int = 100,
+        page: Int = 1,
         accessToken: String? = null,
     ): List<TermDto> {
         val query = mutableListOf(
             "_fields" to "id,name,slug,count",
             "per_page" to perPage.toString(),
+            "page" to maxOf(1, page).toString(),
         )
         slug?.let { query += "slug" to it }
-        search?.let { query += "search" to it }
         orderBy?.let { query += "orderby" to it }
         order?.let { query += "order" to it }
         val url = apiUrl(POSTS_API_BASE, "sites", source.wpcomSite, taxonomy, query = query)
@@ -319,6 +336,7 @@ class WpComContentRepository(
     private companion object {
         const val POSTS_API_BASE = "https://public-api.wordpress.com/wp/v2"
         const val VIDEOS_API_BASE = "https://public-api.wordpress.com/rest/v1.1"
+        const val MAX_EVENT_TERM_PAGES = 5
     }
 }
 
