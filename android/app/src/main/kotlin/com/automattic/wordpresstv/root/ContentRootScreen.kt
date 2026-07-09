@@ -261,7 +261,6 @@ private fun Body(
             WordCampsScreen(
                 repository = repository,
                 source = Sources.wordpressTV,
-                category = section.category,
                 onPlay = onPlay,
                 onAuthRequired = onAuthRequired,
             )

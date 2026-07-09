@@ -171,17 +171,14 @@ struct VideoRail: View {
     }
 }
 
-/// The WordCamps tab: a broad language-filtered WordCamp category rail at the
-/// top, followed by event-taxonomy rails loaded page by page as the viewer
+/// The WordCamps tab: event-taxonomy rails loaded page by page as the viewer
 /// scrolls down.
 struct WordCampsView: View {
     let repository: ContentRepository
     let source: ContentSource
-    let category: NavCategory
     let onPlay: (Video, ContentSource) -> Void
     let onAuthRequired: () -> Void
 
-    @State private var latestModel: VideoFeedViewModel
     @State private var events: [ContentEvent] = []
     @State private var nextEventPage = 1
     @State private var isLoadingEventPage = false
@@ -192,30 +189,19 @@ struct WordCampsView: View {
     init(
         repository: ContentRepository,
         source: ContentSource,
-        category: NavCategory,
         onPlay: @escaping (Video, ContentSource) -> Void,
         onAuthRequired: @escaping () -> Void = {}
     ) {
         self.repository = repository
         self.source = source
-        self.category = category
         self.onPlay = onPlay
         self.onAuthRequired = onAuthRequired
-        _latestModel = State(initialValue: VideoFeedViewModel(repository: repository, source: source, query: .category(category.ref)))
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 56) {
-                QueryVideoRail(
-                    title: "Latest WordCamp Videos",
-                    model: latestModel,
-                    source: source,
-                    onPlay: onPlay,
-                    onAuthRequired: onAuthRequired
-                )
-
-                ForEach(events) { event in
+                ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
                     QueryVideoRail(
                         title: event.name,
                         model: VideoFeedViewModel(repository: repository, source: source, query: .event(event, applyLanguageFilter: true)),
@@ -224,6 +210,11 @@ struct WordCampsView: View {
                         onAuthRequired: onAuthRequired,
                         hideWhenEmpty: true
                     )
+                    .task {
+                        if index == events.count - 1 {
+                            await loadNextEventPageIfNeeded()
+                        }
+                    }
                 }
 
                 eventPaginationFooter
@@ -242,18 +233,14 @@ struct WordCampsView: View {
         if isLoadingEventPage {
             ProgressView()
                 .controlSize(.large)
-                .frame(maxWidth: .infinity, minHeight: 180)
+                .frame(maxWidth: .infinity, minHeight: 300)
         } else if eventPageFailed {
             Placeholder(
                 message: "Couldn’t load more WordCamps. Please try again.",
                 action: ("Retry", { Task { await loadNextEventPageIfNeeded() } })
             )
-            .frame(minHeight: 220)
+            .frame(minHeight: 300)
             .padding(.horizontal, 80)
-        } else if canLoadMoreEvents {
-            Color.clear
-                .frame(height: 1)
-                .task { await loadNextEventPageIfNeeded() }
         }
     }
 

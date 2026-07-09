@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,7 +19,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.automattic.wordpresstv.R
-import com.automattic.wordpresstv.catalog.NavCategory
 import com.automattic.wordpresstv.core.data.ContentRepository
 import com.automattic.wordpresstv.core.domain.ContentEvent
 import com.automattic.wordpresstv.core.domain.ContentSource
@@ -35,15 +34,13 @@ import kotlinx.coroutines.launch
 import androidx.tv.material3.Text
 
 /**
- * The WordCamps tab: a broad language-filtered WordCamp category rail at the
- * top, followed by event-taxonomy rails loaded page by page as the viewer
+ * The WordCamps tab: event-taxonomy rails loaded page by page as the viewer
  * scrolls down.
  */
 @Composable
 fun WordCampsScreen(
     repository: ContentRepository,
     source: ContentSource,
-    category: NavCategory,
     onPlay: (Video, ContentSource) -> Unit,
     onAuthRequired: () -> Unit,
     modifier: Modifier = Modifier,
@@ -89,18 +86,7 @@ fun WordCampsScreen(
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(32.dp),
     ) {
-        item {
-            QueryVideoRail(
-                title = stringResource(R.string.latest_wordcamp_videos),
-                repository = repository,
-                source = source,
-                query = VideoQuery.Category(category.ref),
-                onPlay = onPlay,
-                onAuthRequired = onAuthRequired,
-            )
-        }
-
-        items(events, key = { it.id }) { event ->
+        itemsIndexed(events, key = { _, event -> event.id }) { index, event ->
             QueryVideoRail(
                 title = event.name,
                 repository = repository,
@@ -110,19 +96,23 @@ fun WordCampsScreen(
                 onAuthRequired = onAuthRequired,
                 hideWhenEmpty = true,
             )
+            if (index == events.lastIndex) {
+                LaunchedEffect(events.size, nextEventPage) { loadNextEventPage() }
+            }
         }
 
-        item {
-            when {
-                isLoadingEventPage -> RailPlaceholder { CircularProgressIndicator(color = Color.White) }
-                eventPageFailed -> RailPlaceholder {
-                    MessageWithAction(
-                        message = stringResource(R.string.wordcamps_load_error),
-                        action = stringResource(R.string.retry),
-                        onAction = { scope.launch { loadNextEventPage() } },
-                    )
+        if (isLoadingEventPage || eventPageFailed) {
+            item {
+                when {
+                    isLoadingEventPage -> RailPlaceholder { CircularProgressIndicator(color = Color.White) }
+                    eventPageFailed -> RailPlaceholder {
+                        MessageWithAction(
+                            message = stringResource(R.string.wordcamps_load_error),
+                            action = stringResource(R.string.retry),
+                            onAction = { scope.launch { loadNextEventPage() } },
+                        )
+                    }
                 }
-                canLoadMoreEvents -> LaunchedEffect(nextEventPage, events.size) { loadNextEventPage() }
             }
         }
     }

@@ -157,7 +157,6 @@ struct ContentRootView: View {
                 WordCampsView(
                     repository: repository,
                     source: Sources.wordpressTV,
-                    category: category,
                     onPlay: play,
                     onAuthRequired: routeToPairing
                 )
