@@ -94,6 +94,7 @@ fun WordCampsScreen(
         isLoadingEventPage = false
         canLoadMoreEvents = true
         eventPageFailed = false
+        loadEventPages()
     }
 
     val scope = rememberCoroutineScope()
@@ -114,13 +115,8 @@ fun WordCampsScreen(
             }
         }
 
-        if (canLoadMoreEvents || isLoadingEventPage || eventPageFailed) {
+        if (isLoadingEventPage || eventPageFailed) {
             item(key = "wordcamp-pagination") {
-                LaunchedEffect(nextEventPage, canLoadMoreEvents, eventPageFailed) {
-                    if (canLoadMoreEvents && !eventPageFailed && !isLoadingEventPage) {
-                        loadEventPages()
-                    }
-                }
                 when {
                     isLoadingEventPage -> RailPlaceholder { CircularProgressIndicator(color = Color.White) }
                     eventPageFailed -> RailPlaceholder {
@@ -130,7 +126,6 @@ fun WordCampsScreen(
                             onAction = { scope.launch { loadEventPages() } },
                         )
                     }
-                    else -> RailPlaceholder {}
                 }
             }
         }
