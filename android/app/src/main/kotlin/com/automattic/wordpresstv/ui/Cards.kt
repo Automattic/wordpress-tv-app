@@ -195,8 +195,8 @@ fun ContinueWatchingCard(
         }
     }
 
-    Column(modifier) {
-        Card(onClick = onClick, modifier = Modifier.width(320.dp).focusRequesterOrNone(focusRequester)) {
+    Column(modifier.width(320.dp)) {
+        Card(onClick = onClick, modifier = Modifier.fillMaxWidth().focusRequesterOrNone(focusRequester)) {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
                 PosterBox(posterUrl, Modifier.fillMaxSize())
                 ResumeBar(
