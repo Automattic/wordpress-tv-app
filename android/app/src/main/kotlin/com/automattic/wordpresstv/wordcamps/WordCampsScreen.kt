@@ -2,10 +2,12 @@ package com.automattic.wordpresstv.wordcamps
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -14,7 +16,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -30,7 +31,6 @@ import com.automattic.wordpresstv.feed.RailPlaceholder
 import com.automattic.wordpresstv.feed.RailSection
 import com.automattic.wordpresstv.feed.VideoRail
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
@@ -49,7 +49,6 @@ fun WordCampsScreen(
     var isLoadingEventPage by remember(repository, source.id) { mutableStateOf(false) }
     var canLoadMoreEvents by remember(repository, source.id) { mutableStateOf(true) }
     var eventPageFailed by remember(repository, source.id) { mutableStateOf(false) }
-    val listState = rememberLazyListState()
 
     suspend fun loadEventPages() {
         if (isLoadingEventPage || !canLoadMoreEvents) return
@@ -102,21 +101,6 @@ fun WordCampsScreen(
         loadEventPages()
     }
 
-    LaunchedEffect(repository, source.id, listState) {
-        snapshotFlow {
-            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            rails.isNotEmpty() &&
-                lastVisibleIndex >= rails.lastIndex &&
-                canLoadMoreEvents &&
-                !isLoadingEventPage &&
-                !eventPageFailed
-        }
-            .distinctUntilChanged()
-            .collect { shouldLoad ->
-                if (shouldLoad) loadEventPages()
-            }
-    }
-
     val scope = rememberCoroutineScope()
 
     if (rails.isEmpty()) {
@@ -133,7 +117,6 @@ fun WordCampsScreen(
         }
     } else {
         LazyColumn(
-            state = listState,
             modifier = modifier.fillMaxSize(),
             contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(32.dp),
@@ -149,17 +132,23 @@ fun WordCampsScreen(
                 }
             }
 
-            if (isLoadingEventPage || eventPageFailed) {
-                item(key = "wordcamp-pagination") {
-                    when {
-                        isLoadingEventPage -> RailPlaceholder { CircularProgressIndicator(color = Color.White) }
-                        eventPageFailed -> RailPlaceholder {
-                            MessageWithAction(
-                                message = stringResource(R.string.wordcamps_load_error),
-                                action = stringResource(R.string.retry),
-                                onAction = { scope.launch { loadEventPages() } },
-                            )
-                        }
+            if (canLoadMoreEvents && !eventPageFailed) {
+                item(key = "wordcamp-pagination-sentinel") {
+                    LaunchedEffect(nextEventPage, rails.size) {
+                        if (!isLoadingEventPage) loadEventPages()
+                    }
+                    Spacer(Modifier.fillMaxWidth().height(1.dp))
+                }
+            }
+
+            if (eventPageFailed) {
+                item(key = "wordcamp-pagination-error") {
+                    RailPlaceholder {
+                        MessageWithAction(
+                            message = stringResource(R.string.wordcamps_load_error),
+                            action = stringResource(R.string.retry),
+                            onAction = { scope.launch { loadEventPages() } },
+                        )
                     }
                 }
             }
