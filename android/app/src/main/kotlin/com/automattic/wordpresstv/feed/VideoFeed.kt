@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -33,6 +35,7 @@ import com.automattic.wordpresstv.R
 import com.automattic.wordpresstv.core.data.ContentRepository
 import com.automattic.wordpresstv.core.data.RepositoryException
 import com.automattic.wordpresstv.core.domain.CategoryRef
+import com.automattic.wordpresstv.core.domain.ContentEvent
 import com.automattic.wordpresstv.core.domain.ContentSource
 import com.automattic.wordpresstv.core.domain.Video
 import com.automattic.wordpresstv.ui.VideoCard
@@ -49,7 +52,7 @@ import androidx.tv.material3.Text
 sealed interface VideoQuery {
     data object Latest : VideoQuery
     data class Category(val category: CategoryRef) : VideoQuery
-    data class Collection(val category: CategoryRef) : VideoQuery
+    data class Event(val event: ContentEvent, val applyLanguageFilter: Boolean = false) : VideoQuery
     data class Search(val term: String) : VideoQuery
 }
 
@@ -98,11 +101,11 @@ class VideoFeedViewModel(
             page = 1,
             applyLanguageFilter = true,
         )
-        is VideoQuery.Collection -> repository.listByCategory(
+        is VideoQuery.Event -> repository.listByEvent(
             source = source,
-            category = query.category,
+            event = query.event,
             page = 1,
-            applyLanguageFilter = false,
+            applyLanguageFilter = query.applyLanguageFilter,
         )
         is VideoQuery.Search -> repository.search(source, query.term, page = 1)
     }
@@ -223,6 +226,29 @@ fun VideoRail(
             )
         }
     }
+}
+
+/** A titled shelf: section header above its horizontally scrolling content. */
+@Composable
+fun RailSection(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = title,
+            color = Color.White,
+            fontSize = 23.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 56.dp),
+        )
+        content()
+    }
+}
+
+@Composable
+fun RailPlaceholder(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth().height(200.dp),
+        contentAlignment = Alignment.Center,
+    ) { content() }
 }
 
 @Composable

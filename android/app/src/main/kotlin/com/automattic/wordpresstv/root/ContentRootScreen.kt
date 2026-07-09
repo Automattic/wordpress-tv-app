@@ -41,12 +41,12 @@ import com.automattic.wordpresstv.R
 import com.automattic.wordpresstv.auth.AuthManager
 import com.automattic.wordpresstv.auth.PairingScreen
 import com.automattic.wordpresstv.catalog.Catalog
-import com.automattic.wordpresstv.catalog.FlagshipCamp
 import com.automattic.wordpresstv.catalog.NavCategory
 import com.automattic.wordpresstv.continuewatching.WatchProgressStore
 import com.automattic.wordpresstv.core.Sources
 import com.automattic.wordpresstv.core.data.ContentRepository
 import com.automattic.wordpresstv.core.domain.Account
+import com.automattic.wordpresstv.core.domain.ContentEvent
 import com.automattic.wordpresstv.core.domain.ContentSource
 import com.automattic.wordpresstv.core.domain.Video
 import com.automattic.wordpresstv.feed.VideoGrid
@@ -59,6 +59,7 @@ import com.automattic.wordpresstv.settings.ContentLanguageSelection
 import com.automattic.wordpresstv.settings.SettingsScreen
 import com.automattic.wordpresstv.ui.WordPressMark
 import com.automattic.wordpresstv.ui.theme.BrandBlue
+import com.automattic.wordpresstv.wordcamps.WordCampsScreen
 import kotlinx.coroutines.launch
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
@@ -68,7 +69,7 @@ import androidx.tv.material3.Text
 
 /**
  * The app shell: a persistent top nav (the design's pill bar) over a body that
- * swaps between the railed Home, a category grid, flagship-camp drill-ins, and
+ * swaps between the railed Home, a category grid, WordCamp event drill-ins, and
  * search. Playback is hoisted here so any screen can request it through one
  * [play] path — which also wires the resume position and progress recording.
  *
@@ -111,14 +112,14 @@ fun ContentRootScreen(
     }
 
     /**
-     * A flagship card's cover: the newest video's poster in that camp's category.
+     * A WordCamp card's cover: the newest video's poster in that event.
      * Best-effort — the card keeps its brand gradient if this fails.
      */
-    suspend fun campCover(camp: FlagshipCamp): String? =
+    suspend fun eventCover(event: ContentEvent): String? =
         runCatching {
-            val video = repository.listByCategory(
+            val video = repository.listByEvent(
                 source = Sources.wordpressTV,
-                category = camp.ref,
+                event = event,
                 page = 1,
                 applyLanguageFilter = false,
             ).firstOrNull()
@@ -163,8 +164,8 @@ fun ContentRootScreen(
                             repository = repository,
                             store = store,
                             onPlay = ::play,
-                            onOpenCamp = { selected = Section.Flagship(it) },
-                            resolveCover = ::campCover,
+                            onOpenEvent = { selected = Section.WordCamp(it) },
+                            resolveCover = ::eventCover,
                             onAuthRequired = ::routeToPairing,
                         )
                     }
@@ -217,11 +218,11 @@ fun ContentRootScreen(
     }
 }
 
-/** A destination in the top nav (plus the flagship drill-in, which no pill selects). */
+/** A destination in the top nav (plus the WordCamp drill-in, which no pill selects). */
 sealed interface Section {
     data object Home : Section
     data class Category(val category: NavCategory) : Section
-    data class Flagship(val camp: FlagshipCamp) : Section
+    data class WordCamp(val event: ContentEvent) : Section
     data object Search : Section
     data object A8c : Section
 }
@@ -230,7 +231,7 @@ sealed interface Section {
 private fun sectionKey(section: Section): String = when (section) {
     Section.Home -> "home"
     is Section.Category -> "cat-${section.category.slug}"
-    is Section.Flagship -> "camp-${section.camp.slug}"
+    is Section.WordCamp -> "event-${section.event.slug}"
     Section.Search -> "search"
     Section.A8c -> "a8c"
 }
@@ -241,8 +242,8 @@ private fun Body(
     repository: ContentRepository,
     store: WatchProgressStore,
     onPlay: (Video, ContentSource) -> Unit,
-    onOpenCamp: (FlagshipCamp) -> Unit,
-    resolveCover: suspend (FlagshipCamp) -> String?,
+    onOpenEvent: (ContentEvent) -> Unit,
+    resolveCover: suspend (ContentEvent) -> String?,
     onAuthRequired: () -> Unit,
 ) {
     when (section) {
@@ -251,22 +252,30 @@ private fun Body(
             source = Sources.wordpressTV,
             store = store,
             onPlay = onPlay,
-            onOpenCamp = onOpenCamp,
+            onOpenEvent = onOpenEvent,
             resolveCover = resolveCover,
             onAuthRequired = onAuthRequired,
         )
 
-        is Section.Category -> VideoGrid(
-            repository = repository,
-            source = Sources.wordpressTV,
-            query = VideoQuery.Category(section.category.ref),
-            onPlay = onPlay,
-            onAuthRequired = onAuthRequired,
-        )
+        is Section.Category -> if (section.category.slug == Catalog.wordCampsSlug) {
+            WordCampsScreen(
+                repository = repository,
+                source = Sources.wordpressTV,
+                onPlay = onPlay,
+            )
+        } else {
+            VideoGrid(
+                repository = repository,
+                source = Sources.wordpressTV,
+                query = VideoQuery.Category(section.category.ref),
+                onPlay = onPlay,
+                onAuthRequired = onAuthRequired,
+            )
+        }
 
-        is Section.Flagship -> Column(Modifier.fillMaxSize()) {
+        is Section.WordCamp -> Column(Modifier.fillMaxSize()) {
             Text(
-                text = section.camp.title,
+                text = section.event.name,
                 color = Color.White,
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold,
@@ -275,7 +284,7 @@ private fun Body(
             VideoGrid(
                 repository = repository,
                 source = Sources.wordpressTV,
-                query = VideoQuery.Collection(section.camp.ref),
+                query = VideoQuery.Event(section.event),
                 onPlay = onPlay,
                 onAuthRequired = onAuthRequired,
                 modifier = Modifier.weight(1f),

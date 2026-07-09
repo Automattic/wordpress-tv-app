@@ -6,7 +6,7 @@ import Observation
 enum VideoQuery: Equatable {
     case latest
     case category(CategoryRef)
-    case collection(CategoryRef)
+    case event(ContentEvent, applyLanguageFilter: Bool)
     case search(String)
 }
 
@@ -65,12 +65,12 @@ final class VideoFeedViewModel {
                 page: 1,
                 applyLanguageFilter: true
             )
-        case .collection(let ref):
-            return try await repository.listByCategory(
+        case .event(let event, let applyLanguageFilter):
+            return try await repository.listByEvent(
                 source: source,
-                category: ref,
+                event: event,
                 page: 1,
-                applyLanguageFilter: false
+                applyLanguageFilter: applyLanguageFilter
             )
         case .search(let term):
             return try await repository.search(source: source, query: term, page: 1)
@@ -169,6 +169,120 @@ struct VideoRail: View {
             .padding(.vertical, 20)
         }
     }
+}
+
+/// The WordCamps tab: event-taxonomy rails loaded page by page as the viewer
+/// scrolls down.
+struct WordCampsView: View {
+    let repository: ContentRepository
+    let source: ContentSource
+    let onPlay: (Video, ContentSource) -> Void
+
+    @State private var rails: [WordCampRail] = []
+    @State private var nextEventPage = 1
+    @State private var isLoadingEventPage = false
+    @State private var canLoadMoreEvents = true
+    @State private var eventPageFailed = false
+
+    init(
+        repository: ContentRepository,
+        source: ContentSource,
+        onPlay: @escaping (Video, ContentSource) -> Void
+    ) {
+        self.repository = repository
+        self.source = source
+        self.onPlay = onPlay
+    }
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 56) {
+                ForEach(rails) { rail in
+                    RailSection(title: rail.event.name) {
+                        VideoRail(
+                            videos: rail.videos,
+                            source: source,
+                            resolvePoster: { video in await repository.posterURL(source: source, video: video) },
+                            onPlay: onPlay
+                        )
+                    }
+                }
+
+                eventPaginationFooter
+            }
+            .padding(.vertical, 40)
+        }
+    }
+
+    @ViewBuilder
+    private var eventPaginationFooter: some View {
+        if isLoadingEventPage {
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, minHeight: 300)
+        } else if eventPageFailed {
+            Placeholder(
+                message: "Couldn’t load more WordCamps. Please try again.",
+                action: ("Retry", { Task { await loadNextEventPageIfNeeded() } })
+            )
+            .frame(minHeight: 300)
+            .padding(.horizontal, 80)
+        } else if canLoadMoreEvents {
+            Color.clear
+                .frame(maxWidth: .infinity, minHeight: 300)
+                .onAppear {
+                    Task { await loadNextEventPageIfNeeded() }
+                }
+        }
+    }
+
+    private func loadNextEventPageIfNeeded() async {
+        guard !isLoadingEventPage && canLoadMoreEvents else { return }
+        isLoadingEventPage = true
+        eventPageFailed = false
+        var pageNumber = nextEventPage
+        var loadedRails = rails
+        let startingRailCount = loadedRails.count
+        var knownIDs = Set(loadedRails.map { $0.event.id })
+        do {
+            while loadedRails.count - startingRailCount < minWordCampRailsPerBatch {
+                let page = try await repository.listWordCampEvents(source: source, page: pageNumber)
+                if page.isEmpty {
+                    canLoadMoreEvents = false
+                    break
+                }
+                for event in page where !knownIDs.contains(event.id) {
+                    knownIDs.insert(event.id)
+                    let videos = try await repository.listByEvent(
+                        source: source,
+                        event: event,
+                        page: 1,
+                        applyLanguageFilter: true
+                    )
+                    if !videos.isEmpty {
+                        loadedRails.append(WordCampRail(event: event, videos: videos))
+                        rails = loadedRails
+                    }
+                }
+                pageNumber += 1
+            }
+            rails = loadedRails
+            nextEventPage = pageNumber
+        } catch {
+            rails = loadedRails
+            nextEventPage = pageNumber
+            eventPageFailed = true
+        }
+        isLoadingEventPage = false
+    }
+}
+
+private let minWordCampRailsPerBatch = 3
+
+private struct WordCampRail: Identifiable {
+    var id: Int64 { event.id }
+    let event: ContentEvent
+    let videos: [Video]
 }
 
 /// Centered message + optional action, for the empty/error/needs-auth states.

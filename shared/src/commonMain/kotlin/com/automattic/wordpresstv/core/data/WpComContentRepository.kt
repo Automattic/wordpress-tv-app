@@ -1,6 +1,7 @@
 package com.automattic.wordpresstv.core.data
 
 import com.automattic.wordpresstv.core.domain.CategoryRef
+import com.automattic.wordpresstv.core.domain.ContentEvent
 import com.automattic.wordpresstv.core.domain.ContentLanguage
 import com.automattic.wordpresstv.core.domain.ContentSource
 import com.automattic.wordpresstv.core.domain.PlaybackAsset
@@ -14,8 +15,8 @@ import kotlinx.serialization.json.Json
  *
  * Posts use wp/v2 (`/wp/v2/sites/{site}/posts`) because that endpoint supports
  * filtering by custom taxonomy term IDs, including WordPress.tv's `language`
- * taxonomy. Playback and posters still use the v1.1 video-info endpoint because
- * wp/v2 posts do not include VideoPress attachment metadata.
+ * and `event` taxonomies. Playback and posters still use the v1.1 video-info
+ * endpoint because wp/v2 posts do not include VideoPress attachment metadata.
  *
  * [contentLanguageTermIds] are WordPress.tv `language` taxonomy term IDs from
  * the app's explicit content-language setting. Browse feeds apply that language
@@ -33,6 +34,8 @@ class WpComContentRepository(
     private val json = Json { ignoreUnknownKeys = true }
     private val termCacheLock = Mutex()
     private val languageCache = mutableMapOf<String, List<ContentLanguage>>()
+    private val eventCache = mutableMapOf<String, List<ContentEvent>>()
+    private val recentEventTermCache = mutableMapOf<String, EventTermPageCache>()
     private val categoryIdCache = mutableMapOf<String, Long>()
 
     /**
@@ -109,6 +112,63 @@ class WpComContentRepository(
         )
     }
 
+    override suspend fun listFlagshipWordCampEvents(source: ContentSource): List<ContentEvent> =
+        listFlagshipWordCampEvents(source, accessToken = null)
+
+    suspend fun listFlagshipWordCampEvents(source: ContentSource, accessToken: String?): List<ContentEvent> {
+        if (source.auth != ContentSource.Auth.NONE) return emptyList()
+        termCacheLock.withLock {
+            eventCache[source.id]?.let { return it }
+            val events = flagshipWordCampEventsFromTerms(
+                fetchRecentEventTerms(source, accessToken) {
+                    flagshipWordCampEventsFromTerms(it).size >= FlagshipWordCampSeries.size * FlagshipWordCampYearsPerSeries
+                },
+            )
+            eventCache[source.id] = events
+            return events
+        }
+    }
+
+    override suspend fun listWordCampEvents(source: ContentSource, page: Int): List<ContentEvent> =
+        listWordCampEvents(source, page, accessToken = null)
+
+    suspend fun listWordCampEvents(source: ContentSource, page: Int, accessToken: String?): List<ContentEvent> {
+        if (source.auth != ContentSource.Auth.NONE) return emptyList()
+        val requestedPage = maxOf(1, page)
+        val requestedCount = requestedPage * WORDCAMP_EVENTS_PAGE_SIZE
+        termCacheLock.withLock {
+            val terms = fetchRecentEventTerms(source, accessToken) {
+                wordCampEventsFromTerms(it).size >= requestedCount
+            }
+            return wordCampEventsFromTerms(terms)
+                .drop((requestedPage - 1) * WORDCAMP_EVENTS_PAGE_SIZE)
+                .take(WORDCAMP_EVENTS_PAGE_SIZE)
+        }
+    }
+
+    override suspend fun listByEvent(
+        source: ContentSource,
+        event: ContentEvent,
+        page: Int,
+        applyLanguageFilter: Boolean,
+    ): List<Video> =
+        listByEvent(source, event, page, applyLanguageFilter = applyLanguageFilter, accessToken = null)
+
+    suspend fun listByEvent(
+        source: ContentSource,
+        event: ContentEvent,
+        page: Int,
+        applyLanguageFilter: Boolean,
+        accessToken: String?,
+    ): List<Video> =
+        listPosts(
+            source = source,
+            page = page,
+            eventIds = listOf(event.id),
+            applyLanguageFilter = applyLanguageFilter,
+            accessToken = accessToken,
+        )
+
     override suspend fun search(source: ContentSource, query: String, page: Int): List<Video> =
         search(source, query, page, accessToken = null)
 
@@ -144,6 +204,7 @@ class WpComContentRepository(
         source: ContentSource,
         page: Int,
         categoryIds: List<Long> = emptyList(),
+        eventIds: List<Long> = emptyList(),
         search: String? = null,
         applyLanguageFilter: Boolean = true,
         accessToken: String? = null,
@@ -154,6 +215,7 @@ class WpComContentRepository(
             "_fields" to "id,status,title,excerpt,content",
         )
         categoryIds.forEach { query += "categories[]" to it.toString() }
+        eventIds.forEach { query += "event[]" to it.toString() }
         if (applyLanguageFilter) {
             languageIds(source).forEach { query += "language[]" to it.toString() }
         }
@@ -181,17 +243,49 @@ class WpComContentRepository(
         }
     }
 
+    private suspend fun fetchRecentEventTerms(
+        source: ContentSource,
+        accessToken: String?,
+        hasEnoughTerms: (List<TermDto>) -> Boolean,
+    ): List<TermDto> {
+        val cache = recentEventTermCache.getOrPut(source.id) { EventTermPageCache() }
+        while (!cache.reachedEnd && cache.nextPage <= MAX_EVENT_TERM_PAGES && !hasEnoughTerms(cache.terms)) {
+            val pageTerms = fetchTerms(
+                source = source,
+                taxonomy = "event",
+                orderBy = "id",
+                order = "desc",
+                page = cache.nextPage,
+                accessToken = accessToken,
+            )
+            if (pageTerms.isEmpty()) {
+                cache.reachedEnd = true
+            } else {
+                cache.terms += pageTerms
+                cache.nextPage += 1
+            }
+        }
+        return cache.terms.toList()
+    }
+
     private suspend fun fetchTerms(
         source: ContentSource,
         taxonomy: String,
         slug: String? = null,
+        orderBy: String? = null,
+        order: String? = null,
+        perPage: Int = 100,
+        page: Int = 1,
         accessToken: String? = null,
     ): List<TermDto> {
         val query = mutableListOf(
-            "_fields" to "id,name,slug",
-            "per_page" to "100",
+            "_fields" to "id,name,slug,count",
+            "per_page" to perPage.toString(),
+            "page" to maxOf(1, page).toString(),
         )
         slug?.let { query += "slug" to it }
+        orderBy?.let { query += "orderby" to it }
+        order?.let { query += "order" to it }
         val url = apiUrl(POSTS_API_BASE, "sites", source.wpcomSite, taxonomy, query = query)
         return try {
             decode<List<TermDto>>(getBody(url, tokenFor(source, accessToken)))
@@ -262,7 +356,15 @@ class WpComContentRepository(
     private companion object {
         const val POSTS_API_BASE = "https://public-api.wordpress.com/wp/v2"
         const val VIDEOS_API_BASE = "https://public-api.wordpress.com/rest/v1.1"
+        const val MAX_EVENT_TERM_PAGES = 10
+        const val WORDCAMP_EVENTS_PAGE_SIZE = 8
     }
+
+    private data class EventTermPageCache(
+        val terms: MutableList<TermDto> = mutableListOf(),
+        var nextPage: Int = 1,
+        var reachedEnd: Boolean = false,
+    )
 }
 
 internal fun contentLanguagesFromTerms(terms: List<TermDto>): List<ContentLanguage> =
@@ -271,3 +373,42 @@ internal fun contentLanguagesFromTerms(terms: List<TermDto>): List<ContentLangua
         .distinctBy { it.id }
         .map { ContentLanguage(id = it.id, name = it.name, slug = it.slug) }
         .sortedBy { it.name.lowercase() }
+
+private val FlagshipWordCampSeries = listOf("asia", "europe", "us")
+private const val FlagshipWordCampYearsPerSeries = 2
+private val FlagshipWordCampEventSlug = Regex("""^wordcamp-(${FlagshipWordCampSeries.joinToString("|")})-(\d{4})$""")
+private val WordCampEventSlug = Regex("""^wordcamp-[a-z0-9]+(?:-[a-z0-9]+)*-\d{4}$""")
+
+internal fun wordCampEventsFromTerms(terms: List<TermDto>): List<ContentEvent> =
+    terms
+        .filter { it.name.isNotBlank() && it.count > 0 && WordCampEventSlug.matches(it.slug) }
+        .distinctBy { it.id }
+        .map { ContentEvent(id = it.id, name = it.name, slug = it.slug, videoCount = it.count) }
+
+internal fun flagshipWordCampEventsFromTerms(terms: List<TermDto>): List<ContentEvent> {
+    data class Candidate(val term: TermDto, val year: Int)
+
+    val candidatesBySeries = mutableMapOf<String, MutableList<Candidate>>()
+    terms.forEach { term ->
+        if (term.name.isBlank() || term.count <= 0) return@forEach
+        val match = FlagshipWordCampEventSlug.matchEntire(term.slug) ?: return@forEach
+        val series = match.groupValues[1]
+        val year = match.groupValues[2].toIntOrNull() ?: return@forEach
+        candidatesBySeries.getOrPut(series) { mutableListOf() } += Candidate(term = term, year = year)
+    }
+
+    val selectedBySeries = candidatesBySeries.mapValues { (_, candidates) ->
+        candidates
+            .sortedWith(compareByDescending<Candidate> { it.year }.thenByDescending { it.term.id })
+            .distinctBy { it.year }
+            .take(FlagshipWordCampYearsPerSeries)
+    }
+
+    return (0 until FlagshipWordCampYearsPerSeries).flatMap { yearIndex ->
+        FlagshipWordCampSeries.mapNotNull { series ->
+            selectedBySeries[series]?.getOrNull(yearIndex)?.term?.let {
+                ContentEvent(id = it.id, name = it.name, slug = it.slug, videoCount = it.count)
+            }
+        }
+    }
+}

@@ -7,11 +7,11 @@ import kotlinx.serialization.Serializable
 // Mapping lives in `Mapping.kt`.
 //
 //   GET /wp/v2/sites/{site}/posts        -> List<PostDto>   (bare array)
-//   GET /wp/v2/sites/{site}/{taxonomy}   -> List<TermDto>   (slug -> term id)
+//   GET /wp/v2/sites/{site}/{taxonomy}   -> List<TermDto>   (taxonomy term id)
 //   GET /rest/v1.1/videos/{guid}         -> VideoInfoDto
 //
 // The posts feed uses the modern wp/v2 endpoint because it filters by the
-// custom `language`/category taxonomies. wp/v2 wraps text fields in
+// custom `language`/`event`/category taxonomies. wp/v2 wraps text fields in
 // `{ "rendered": ... }` and carries no attachment block, so VideoPress metadata
 // comes from rendered content and the v1.1 video-info endpoint.
 
@@ -34,6 +34,7 @@ internal data class TermDto(
     val id: Long,
     val name: String = "",
     val slug: String = "",
+    val count: Int = 0,
 )
 
 // --- Video info (playback resolution) ---

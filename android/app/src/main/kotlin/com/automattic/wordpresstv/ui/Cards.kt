@@ -36,8 +36,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.automattic.wordpresstv.R
-import com.automattic.wordpresstv.catalog.FlagshipCamp
+import com.automattic.wordpresstv.catalog.wordCampCardColors
+import com.automattic.wordpresstv.catalog.wordCampDisplayPlace
 import com.automattic.wordpresstv.continuewatching.WatchProgress
+import com.automattic.wordpresstv.core.domain.ContentEvent
 import com.automattic.wordpresstv.core.domain.Video
 import com.automattic.wordpresstv.ui.theme.BrandBlue
 import androidx.tv.material3.Card
@@ -47,8 +49,8 @@ import androidx.tv.material3.Text
 /**
  * The card vocabulary shared across Home, category grids, and search: a poster
  * primitive plus the three card shapes in the design — landscape video card,
- * portrait flagship card, and the wide Continue Watching card with a resume bar.
- * Mirrors the Apple `Cards.swift`.
+ * portrait WordCamp event card, and the wide Continue Watching card with a
+ * resume bar. Mirrors the Apple `Cards.swift`.
  */
 
 private val PosterPlaceholder = Color(0xFF15151A)
@@ -105,73 +107,66 @@ fun VideoCard(
 }
 
 /**
- * Portrait flagship-WordCamp card. A real cover image from the camp's latest
+ * Portrait WordCamp event card. A real cover image from the event's latest
  * video sits behind a brand-tinted scrim, with the WordPress mark and event name
  * over it — a populated poster rather than a flat colour. Falls back to the brand
- * gradient until (or if) the cover resolves. Opens the camp's videos.
+ * gradient until (or if) the cover resolves. Opens the event's videos.
  */
 @Composable
 fun PortraitCampCard(
-    camp: FlagshipCamp,
-    resolveCover: suspend (FlagshipCamp) -> String?,
+    event: ContentEvent,
+    resolveCover: suspend (ContentEvent) -> String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
 ) {
-    var coverUrl by remember(camp.slug) { mutableStateOf<String?>(null) }
-    LaunchedEffect(camp.slug) { coverUrl = resolveCover(camp) }
+    var coverUrl by remember(event.slug) { mutableStateOf<String?>(null) }
+    LaunchedEffect(event.slug) { coverUrl = resolveCover(event) }
+    val colors = event.wordCampCardColors
 
-    // The event's place, e.g. "Asia" — the flagship name minus the shared
-    // "WordCamp" prefix, so it reads as poster art rather than a wrapped label.
-    val place = camp.title.removePrefix("WordCamp ")
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth().height(230.dp).focusRequesterOrNone(focusRequester),
+        scale = CardDefaults.scale(focusedScale = 1.03f),
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            // Brand gradient — the base, and the fallback if no cover.
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(colors)))
 
-    Column(modifier) {
-        Card(
-            onClick = onClick,
-            modifier = Modifier.fillMaxWidth().height(230.dp).focusRequesterOrNone(focusRequester),
-            scale = CardDefaults.scale(focusedScale = 1.03f),
-        ) {
-            Box(Modifier.fillMaxSize()) {
-                // Brand gradient — the base, and the fallback if no cover.
-                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(camp.colors)))
+            // Real cover image, sized to the card and cropped.
+            if (coverUrl != null) {
+                AsyncImage(
+                    model = coverUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
 
-                // Real cover image, sized to the card and cropped.
-                if (coverUrl != null) {
-                    AsyncImage(
-                        model = coverUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-
-                // Full-card scrim: a light top darkening for cohesion, deepening
-                // into the brand colour at the bottom so the cover reads as this
-                // camp and the title stays legible over any art.
-                Box(
-                    Modifier.fillMaxSize().background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.Black.copy(alpha = 0.4f),
-                                Color.Black.copy(alpha = 0.1f),
-                                camp.colors.last().copy(alpha = 0.98f),
-                            ),
+            // Full-card scrim: a light top darkening for cohesion, deepening
+            // into the brand colour at the bottom so the cover reads as this
+            // camp and the title stays legible over any art.
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Black.copy(alpha = 0.4f),
+                            Color.Black.copy(alpha = 0.1f),
+                            colors.last().copy(alpha = 0.98f),
                         ),
                     ),
-                )
+                ),
+            )
 
-                WordPressMark(
-                    modifier = Modifier.align(Alignment.TopStart).padding(18.dp).size(28.dp),
-                )
+            WordPressMark(
+                modifier = Modifier.align(Alignment.TopStart).padding(18.dp).size(28.dp),
+            )
 
-                Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
-                    Text("WordCamp", color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Text(place, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
+            Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
+                Text("WordCamp", color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(event.wordCampDisplayPlace, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Text(camp.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -238,7 +233,7 @@ private fun ResumeBar(fraction: Float, modifier: Modifier = Modifier) {
 }
 
 /**
- * The official WordPress logo mark, used across the nav bar and flagship cards.
+ * The official WordPress logo mark, used across the nav bar and WordCamp cards.
  * Rendered from the bundled vector so it tints to its context and stays crisp at
  * any size.
  */
