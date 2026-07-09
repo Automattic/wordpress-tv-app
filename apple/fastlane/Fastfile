@@ -29,6 +29,17 @@ CODE_SIGNING_STORAGE_OPTIONS = {
   s3_region: 'us-east-2'
 }.freeze
 
+# Marketing version (CFBundleShortVersionString) from the latest git tag — e.g.
+# `1.2.3` or `v1.2.3`, the leading `v` is optional — falling back to 0.0.1 when the
+# repo has no tags yet. Mirrors the Android versionName (android/app/build.gradle.kts)
+# so both artifacts share one source of truth: the tag. The build number
+# (CFBundleVersion / CURRENT_PROJECT_VERSION) stays the CI build number.
+def latest_git_tag_version
+  tag = `git describe --tags --abbrev=0 2>/dev/null`.strip
+  version = tag.sub(/\Av/, '')
+  version.empty? ? '0.0.1' : version
+end
+
 before_all do
   # Required for `match` to work correctly on CI: creates and unlocks a dedicated
   # temporary keychain and sets it as the default, so codesign can use the imported
@@ -90,6 +101,9 @@ platform :tvos do
     # Use the Buildkite build number on CI; fall back to 1 for local runs.
     build_number = ENV.fetch('BUILDKITE_BUILD_NUMBER', '1')
 
+    # Marketing version (CFBundleShortVersionString) tracks the latest git tag.
+    marketing_version = latest_git_tag_version
+
     build_app(
       project: XCODE_PROJECT_PATH,
       scheme: APP_SCHEME,
@@ -97,7 +111,7 @@ platform :tvos do
       export_method: 'app-store',
       export_team_id: TEAM_ID,
       output_directory: File.join(PROJECT_ROOT_FOLDER, 'build'),
-      xcargs: "CURRENT_PROJECT_VERSION=#{build_number}",
+      xcargs: "CURRENT_PROJECT_VERSION=#{build_number} MARKETING_VERSION=#{marketing_version}",
       export_options: {
         method: 'app-store',
         provisioningProfiles: {
