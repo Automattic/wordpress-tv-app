@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -224,6 +226,29 @@ fun VideoRail(
             )
         }
     }
+}
+
+/** A titled shelf: section header above its horizontally scrolling content. */
+@Composable
+fun RailSection(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = title,
+            color = Color.White,
+            fontSize = 23.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 56.dp),
+        )
+        content()
+    }
+}
+
+@Composable
+fun RailPlaceholder(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth().height(200.dp),
+        contentAlignment = Alignment.Center,
+    ) { content() }
 }
 
 @Composable

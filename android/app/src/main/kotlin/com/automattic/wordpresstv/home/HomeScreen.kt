@@ -1,13 +1,9 @@
 package com.automattic.wordpresstv.home
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -20,12 +16,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.automattic.wordpresstv.R
@@ -38,6 +32,8 @@ import com.automattic.wordpresstv.core.domain.ContentEvent
 import com.automattic.wordpresstv.core.domain.ContentSource
 import com.automattic.wordpresstv.core.domain.Video
 import com.automattic.wordpresstv.feed.MessageWithAction
+import com.automattic.wordpresstv.feed.RailPlaceholder
+import com.automattic.wordpresstv.feed.RailSection
 import com.automattic.wordpresstv.feed.VideoFeedViewModel
 import com.automattic.wordpresstv.feed.VideoQuery
 import com.automattic.wordpresstv.feed.VideoRail
@@ -263,27 +259,4 @@ private fun LatestRail(
             onPlay = onPlay,
         )
     }
-}
-
-/** A titled shelf: section header above its (horizontally scrolling) content. */
-@Composable
-private fun RailSection(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = title,
-            color = Color.White,
-            fontSize = 23.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 56.dp),
-        )
-        content()
-    }
-}
-
-@Composable
-private fun RailPlaceholder(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxWidth().height(200.dp),
-        contentAlignment = Alignment.Center,
-    ) { content() }
 }

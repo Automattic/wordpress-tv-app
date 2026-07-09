@@ -35,6 +35,7 @@ class WpComContentRepository(
     private val termCacheLock = Mutex()
     private val languageCache = mutableMapOf<String, List<ContentLanguage>>()
     private val eventCache = mutableMapOf<String, List<ContentEvent>>()
+    private val recentEventTermCache = mutableMapOf<String, EventTermPageCache>()
     private val categoryIdCache = mutableMapOf<String, Long>()
 
     /**
@@ -119,10 +120,29 @@ class WpComContentRepository(
         termCacheLock.withLock {
             eventCache[source.id]?.let { return it }
             val events = flagshipWordCampEventsFromTerms(
-                fetchRecentEventTerms(source, accessToken),
+                fetchRecentEventTerms(source, accessToken) {
+                    flagshipWordCampEventsFromTerms(it).size >= FlagshipWordCampSeries.size * FlagshipWordCampYearsPerSeries
+                },
             )
             eventCache[source.id] = events
             return events
+        }
+    }
+
+    override suspend fun listWordCampEvents(source: ContentSource, page: Int): List<ContentEvent> =
+        listWordCampEvents(source, page, accessToken = null)
+
+    suspend fun listWordCampEvents(source: ContentSource, page: Int, accessToken: String?): List<ContentEvent> {
+        if (source.auth != ContentSource.Auth.NONE) return emptyList()
+        val requestedPage = maxOf(1, page)
+        val requestedCount = requestedPage * WORDCAMP_EVENTS_PAGE_SIZE
+        termCacheLock.withLock {
+            val terms = fetchRecentEventTerms(source, accessToken) {
+                wordCampEventsFromTerms(it).size >= requestedCount
+            }
+            return wordCampEventsFromTerms(terms)
+                .drop((requestedPage - 1) * WORDCAMP_EVENTS_PAGE_SIZE)
+                .take(WORDCAMP_EVENTS_PAGE_SIZE)
         }
     }
 
@@ -226,24 +246,26 @@ class WpComContentRepository(
     private suspend fun fetchRecentEventTerms(
         source: ContentSource,
         accessToken: String?,
+        hasEnoughTerms: (List<TermDto>) -> Boolean,
     ): List<TermDto> {
-        val terms = mutableListOf<TermDto>()
-        var page = 1
-        while (page <= MAX_EVENT_TERM_PAGES) {
+        val cache = recentEventTermCache.getOrPut(source.id) { EventTermPageCache() }
+        while (!cache.reachedEnd && cache.nextPage <= MAX_EVENT_TERM_PAGES && !hasEnoughTerms(cache.terms)) {
             val pageTerms = fetchTerms(
                 source = source,
                 taxonomy = "event",
                 orderBy = "id",
                 order = "desc",
-                page = page,
+                page = cache.nextPage,
                 accessToken = accessToken,
             )
-            if (pageTerms.isEmpty()) break
-            terms += pageTerms
-            if (flagshipWordCampEventsFromTerms(terms).size >= FlagshipWordCampSeries.size * FlagshipWordCampYearsPerSeries) break
-            page += 1
+            if (pageTerms.isEmpty()) {
+                cache.reachedEnd = true
+            } else {
+                cache.terms += pageTerms
+                cache.nextPage += 1
+            }
         }
-        return terms
+        return cache.terms.toList()
     }
 
     private suspend fun fetchTerms(
@@ -334,8 +356,15 @@ class WpComContentRepository(
     private companion object {
         const val POSTS_API_BASE = "https://public-api.wordpress.com/wp/v2"
         const val VIDEOS_API_BASE = "https://public-api.wordpress.com/rest/v1.1"
-        const val MAX_EVENT_TERM_PAGES = 5
+        const val MAX_EVENT_TERM_PAGES = 10
+        const val WORDCAMP_EVENTS_PAGE_SIZE = 8
     }
+
+    private data class EventTermPageCache(
+        val terms: MutableList<TermDto> = mutableListOf(),
+        var nextPage: Int = 1,
+        var reachedEnd: Boolean = false,
+    )
 }
 
 internal fun contentLanguagesFromTerms(terms: List<TermDto>): List<ContentLanguage> =
@@ -348,6 +377,13 @@ internal fun contentLanguagesFromTerms(terms: List<TermDto>): List<ContentLangua
 private val FlagshipWordCampSeries = listOf("asia", "europe", "us")
 private const val FlagshipWordCampYearsPerSeries = 2
 private val FlagshipWordCampEventSlug = Regex("""^wordcamp-(${FlagshipWordCampSeries.joinToString("|")})-(\d{4})$""")
+private val WordCampEventSlug = Regex("""^wordcamp-[a-z0-9]+(?:-[a-z0-9]+)*-\d{4}$""")
+
+internal fun wordCampEventsFromTerms(terms: List<TermDto>): List<ContentEvent> =
+    terms
+        .filter { it.name.isNotBlank() && it.count > 0 && WordCampEventSlug.matches(it.slug) }
+        .distinctBy { it.id }
+        .map { ContentEvent(id = it.id, name = it.name, slug = it.slug, videoCount = it.count) }
 
 internal fun flagshipWordCampEventsFromTerms(terms: List<TermDto>): List<ContentEvent> {
     data class Candidate(val term: TermDto, val year: Int)

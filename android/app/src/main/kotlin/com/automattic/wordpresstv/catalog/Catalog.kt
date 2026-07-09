@@ -12,6 +12,7 @@ import com.automattic.wordpresstv.core.domain.ContentSource
  * Apple `Catalog`.
  */
 object Catalog {
+    const val wordCampsSlug: String = "wordcamptv"
 
     /**
      * The content-category tabs in the top nav (the mock's Home / WordCamps /
@@ -19,7 +20,7 @@ object Catalog {
      * landing screen; these are the flat-grid browse destinations.
      */
     val categories: List<NavCategory> = listOf(
-        NavCategory(title = "WordCamps", slug = "wordcamptv"),
+        NavCategory(title = "WordCamps", slug = wordCampsSlug),
         NavCategory(title = "Meetups", slug = "wordpress-meetup"),
         NavCategory(title = "Education", slug = "learn-wordpress"),
         NavCategory(title = "How To", slug = "how-to"),

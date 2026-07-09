@@ -3,12 +3,13 @@ import SwiftUI
 /// The app's curated browse structure: the top-nav categories plus small bits of
 /// presentation metadata for taxonomy-backed WordCamp event cards.
 enum Catalog {
+    static let wordCampsSlug = "wordcamptv"
 
     /// The content-category tabs in the top nav (the mock's Home / WordCamps /
     /// Meetups / Education / How To). `Home` is handled separately as the railed
     /// landing screen; these are the flat-grid browse destinations.
     static let categories: [NavCategory] = [
-        NavCategory(title: "WordCamps", slug: "wordcamptv"),
+        NavCategory(title: "WordCamps", slug: wordCampsSlug),
         NavCategory(title: "Meetups", slug: "wordpress-meetup"),
         NavCategory(title: "Education", slug: "learn-wordpress"),
         NavCategory(title: "How To", slug: "how-to"),

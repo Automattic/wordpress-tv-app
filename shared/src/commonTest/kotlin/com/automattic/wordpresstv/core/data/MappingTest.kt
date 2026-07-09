@@ -117,4 +117,24 @@ class MappingTest {
             flagshipWordCampEventsFromTerms(terms).map { it.id to it.name },
         )
     }
+
+    @Test fun mapsRecentWordCampEventTermsFromApiOrder() {
+        val terms = listOf(
+            TermDto(id = 40, name = "WordCamp Mannheim 2026", slug = "wordcamp-mannheim-2026", count = 18),
+            TermDto(id = 39, name = "WordCamp Europe 2026 Contributor Day Online", slug = "wordcamp-europe-2026-contributor-day-online", count = 1),
+            TermDto(id = 38, name = "WordPress Meetup Badajoz", slug = "wordpress-meetup-badajoz", count = 1),
+            TermDto(id = 37, name = "WordCamp Europe 2025", slug = "wordcamp-europe-2025", count = 52),
+            TermDto(id = 36, name = "WordCamp Empty 2026", slug = "wordcamp-empty-2026", count = 0),
+            TermDto(id = 35, name = "WordCamp San José 2025", slug = "wordcamp-san-jose-2025", count = 24),
+        )
+
+        assertEquals(
+            listOf(
+                40L to "WordCamp Mannheim 2026",
+                37L to "WordCamp Europe 2025",
+                35L to "WordCamp San José 2025",
+            ),
+            wordCampEventsFromTerms(terms).map { it.id to it.name },
+        )
+    }
 }

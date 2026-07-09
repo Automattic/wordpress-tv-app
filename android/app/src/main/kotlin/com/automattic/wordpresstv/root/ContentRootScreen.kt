@@ -59,6 +59,7 @@ import com.automattic.wordpresstv.settings.ContentLanguageSelection
 import com.automattic.wordpresstv.settings.SettingsScreen
 import com.automattic.wordpresstv.ui.WordPressMark
 import com.automattic.wordpresstv.ui.theme.BrandBlue
+import com.automattic.wordpresstv.wordcamps.WordCampsScreen
 import kotlinx.coroutines.launch
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
@@ -256,13 +257,23 @@ private fun Body(
             onAuthRequired = onAuthRequired,
         )
 
-        is Section.Category -> VideoGrid(
-            repository = repository,
-            source = Sources.wordpressTV,
-            query = VideoQuery.Category(section.category.ref),
-            onPlay = onPlay,
-            onAuthRequired = onAuthRequired,
-        )
+        is Section.Category -> if (section.category.slug == Catalog.wordCampsSlug) {
+            WordCampsScreen(
+                repository = repository,
+                source = Sources.wordpressTV,
+                category = section.category,
+                onPlay = onPlay,
+                onAuthRequired = onAuthRequired,
+            )
+        } else {
+            VideoGrid(
+                repository = repository,
+                source = Sources.wordpressTV,
+                query = VideoQuery.Category(section.category.ref),
+                onPlay = onPlay,
+                onAuthRequired = onAuthRequired,
+            )
+        }
 
         is Section.WordCamp -> Column(Modifier.fillMaxSize()) {
             Text(

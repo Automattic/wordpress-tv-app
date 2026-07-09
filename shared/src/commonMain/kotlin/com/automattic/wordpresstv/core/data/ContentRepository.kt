@@ -11,7 +11,8 @@ import com.automattic.wordpresstv.core.domain.Video
  * The seam between the data layer (`:core`) and the UI (`:app`).
  *
  * It declares the **full** content contract. Everything the browse experience
- * needs is implemented ([listLatest], [listByCategory], [search],
+ * needs is implemented ([listLatest], [listByCategory], [listByEvent],
+ * [listFlagshipWordCampEvents], [listWordCampEvents], [search],
  * [resolvePlayback], [posterUrl]); [listCategories] stays stubbed with
  * [RepositoryException.NotImplemented] until a slice needs it. The app codes
  * against this interface, never against a concrete implementation.
@@ -41,6 +42,9 @@ interface ContentRepository {
 
     /** Latest flagship WordCamp event terms from the WordPress.tv `event` taxonomy. */
     suspend fun listFlagshipWordCampEvents(source: ContentSource): List<ContentEvent>
+
+    /** Recent WordCamp event terms from the WordPress.tv `event` taxonomy. [page] is 1-based. */
+    suspend fun listWordCampEvents(source: ContentSource, page: Int): List<ContentEvent>
 
     /** Videos in [event] for [source]. [page] is 1-based. */
     suspend fun listByEvent(

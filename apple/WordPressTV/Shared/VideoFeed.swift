@@ -171,6 +171,163 @@ struct VideoRail: View {
     }
 }
 
+/// The WordCamps tab: a broad language-filtered WordCamp category rail at the
+/// top, followed by event-taxonomy rails loaded page by page as the viewer
+/// scrolls down.
+struct WordCampsView: View {
+    let repository: ContentRepository
+    let source: ContentSource
+    let category: NavCategory
+    let onPlay: (Video, ContentSource) -> Void
+    let onAuthRequired: () -> Void
+
+    @State private var latestModel: VideoFeedViewModel
+    @State private var events: [ContentEvent] = []
+    @State private var nextEventPage = 1
+    @State private var isLoadingEventPage = false
+    @State private var canLoadMoreEvents = true
+    @State private var eventPageFailed = false
+    @State private var didStart = false
+
+    init(
+        repository: ContentRepository,
+        source: ContentSource,
+        category: NavCategory,
+        onPlay: @escaping (Video, ContentSource) -> Void,
+        onAuthRequired: @escaping () -> Void = {}
+    ) {
+        self.repository = repository
+        self.source = source
+        self.category = category
+        self.onPlay = onPlay
+        self.onAuthRequired = onAuthRequired
+        _latestModel = State(initialValue: VideoFeedViewModel(repository: repository, source: source, query: .category(category.ref)))
+    }
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 56) {
+                QueryVideoRail(
+                    title: "Latest WordCamp Videos",
+                    model: latestModel,
+                    source: source,
+                    onPlay: onPlay,
+                    onAuthRequired: onAuthRequired
+                )
+
+                ForEach(events) { event in
+                    QueryVideoRail(
+                        title: event.name,
+                        model: VideoFeedViewModel(repository: repository, source: source, query: .event(event)),
+                        source: source,
+                        onPlay: onPlay,
+                        onAuthRequired: onAuthRequired
+                    )
+                }
+
+                eventPaginationFooter
+            }
+            .padding(.vertical, 40)
+        }
+        .task {
+            guard !didStart else { return }
+            didStart = true
+            await loadNextEventPageIfNeeded()
+        }
+    }
+
+    @ViewBuilder
+    private var eventPaginationFooter: some View {
+        if isLoadingEventPage {
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, minHeight: 180)
+        } else if eventPageFailed {
+            Placeholder(
+                message: "Couldn’t load more WordCamps. Please try again.",
+                action: ("Retry", { Task { await loadNextEventPageIfNeeded() } })
+            )
+            .frame(minHeight: 220)
+            .padding(.horizontal, 80)
+        } else if canLoadMoreEvents {
+            Color.clear
+                .frame(height: 1)
+                .task { await loadNextEventPageIfNeeded() }
+        }
+    }
+
+    private func loadNextEventPageIfNeeded() async {
+        guard !isLoadingEventPage && canLoadMoreEvents else { return }
+        isLoadingEventPage = true
+        eventPageFailed = false
+        do {
+            let page = try await repository.listWordCampEvents(source: source, page: nextEventPage)
+            let knownIDs = Set(events.map(\.id))
+            let newEvents = page.filter { !knownIDs.contains($0.id) }
+            events += newEvents
+            nextEventPage += 1
+            canLoadMoreEvents = !page.isEmpty
+        } catch {
+            eventPageFailed = true
+        }
+        isLoadingEventPage = false
+    }
+}
+
+private struct QueryVideoRail: View {
+    let title: String
+    @State private var model: VideoFeedViewModel
+    let source: ContentSource
+    let onPlay: (Video, ContentSource) -> Void
+    let onAuthRequired: () -> Void
+
+    init(
+        title: String,
+        model: VideoFeedViewModel,
+        source: ContentSource,
+        onPlay: @escaping (Video, ContentSource) -> Void,
+        onAuthRequired: @escaping () -> Void
+    ) {
+        self.title = title
+        _model = State(initialValue: model)
+        self.source = source
+        self.onPlay = onPlay
+        self.onAuthRequired = onAuthRequired
+    }
+
+    var body: some View {
+        RailSection(title: title) {
+            content
+        }
+        .task { await model.load() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch model.state {
+        case .loading:
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, minHeight: 300)
+        case .needsAuth:
+            Placeholder(message: "Sign in again to continue.", action: ("Sign in", onAuthRequired))
+                .frame(minHeight: 300)
+        case .failed(let message):
+            Placeholder(message: message, action: ("Retry", { Task { await model.load() } }))
+                .frame(minHeight: 300)
+        case .empty:
+            Placeholder(message: "No videos here yet.").frame(minHeight: 300)
+        case .loaded(let videos):
+            VideoRail(
+                videos: videos,
+                source: source,
+                resolvePoster: model.posterURL,
+                onPlay: onPlay
+            )
+        }
+    }
+}
+
 /// Centered message + optional action, for the empty/error/needs-auth states.
 struct Placeholder: View {
     let message: String

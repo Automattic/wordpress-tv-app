@@ -153,13 +153,23 @@ struct ContentRootView: View {
             )
 
         case .category(let category):
-            VideoGrid(
-                repository: repository,
-                source: Sources.wordpressTV,
-                query: .category(category.ref),
-                onPlay: play,
-                onAuthRequired: routeToPairing
-            )
+            if category.slug == Catalog.wordCampsSlug {
+                WordCampsView(
+                    repository: repository,
+                    source: Sources.wordpressTV,
+                    category: category,
+                    onPlay: play,
+                    onAuthRequired: routeToPairing
+                )
+            } else {
+                VideoGrid(
+                    repository: repository,
+                    source: Sources.wordpressTV,
+                    query: .category(category.ref),
+                    onPlay: play,
+                    onAuthRequired: routeToPairing
+                )
+            }
 
         case .wordCamp(let event):
             VStack(alignment: .leading, spacing: 8) {
