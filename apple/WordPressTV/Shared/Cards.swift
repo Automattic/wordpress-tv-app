@@ -80,65 +80,59 @@ struct PortraitCampCard: View {
     private var height: CGFloat { width * 1.5 }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Button(action: onSelect) {
-                ZStack(alignment: .bottomLeading) {
-                    // Brand gradient — the base, and the fallback if no cover.
-                    LinearGradient(colors: event.colors, startPoint: .top, endPoint: .bottom)
+        Button(action: onSelect) {
+            ZStack(alignment: .bottomLeading) {
+                // Brand gradient — the base, and the fallback if no cover.
+                LinearGradient(colors: event.colors, startPoint: .top, endPoint: .bottom)
 
-                    // Real cover image, sized to the card and clipped so it can't
-                    // grow the ZStack (which would push the title out of view).
-                    if let coverURL {
-                        AsyncImage(url: coverURL) { image in
-                            image.resizable().scaledToFill()
-                        } placeholder: {
-                            Color.clear
-                        }
-                        .frame(width: width, height: height)
-                        .clipped()
+                // Real cover image, sized to the card and clipped so it can't
+                // grow the ZStack (which would push the title out of view).
+                if let coverURL {
+                    AsyncImage(url: coverURL) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Color.clear
                     }
-
-                    // Full-card gradient: a light top darkening for cohesion,
-                    // deepening into the brand colour at the bottom so the cover
-                    // reads as this camp and the title stays legible over any art.
-                    LinearGradient(
-                        colors: [
-                            .black.opacity(0.4),
-                            .black.opacity(0.1),
-                            event.colors.last?.opacity(0.98) ?? .black.opacity(0.9),
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-
-                    WordPressMark()
-                        .frame(width: 36, height: 36)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .padding(22)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("WordCamp")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.9))
-                        Text(event.displayPlace)
-                            .font(.system(size: 36, weight: .heavy))
-                            .foregroundStyle(.white)
-                            .minimumScaleFactor(0.6)
-                            .lineLimit(2)
-                    }
-                    .padding(22)
+                    .frame(width: width, height: height)
+                    .clipped()
                 }
-                .frame(width: width, height: height)
-                .clipShape(RoundedRectangle(cornerRadius: 18))
-            }
-            .buttonStyle(.card)
 
-            Text(event.name)
-                .font(.callout.weight(.medium))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                // Full-card gradient: a light top darkening for cohesion,
+                // deepening into the brand colour at the bottom so the cover
+                // reads as this camp and the title stays legible over any art.
+                LinearGradient(
+                    colors: [
+                        .black.opacity(0.4),
+                        .black.opacity(0.1),
+                        event.colors.last?.opacity(0.98) ?? .black.opacity(0.9),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                WordPressMark()
+                    .frame(width: 36, height: 36)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(22)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("WordCamp")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                    Text(event.displayPlace)
+                        .font(.system(size: 34, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(2)
+                }
+                .padding(22)
+            }
+            .frame(width: width, height: height)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
         }
+        .buttonStyle(.card)
         .frame(width: width)
         .task { coverURL = await resolveCover(event) }
     }

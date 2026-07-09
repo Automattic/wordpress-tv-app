@@ -240,7 +240,7 @@ class WpComContentRepository(
             )
             if (pageTerms.isEmpty()) break
             terms += pageTerms
-            if (flagshipWordCampEventsFromTerms(terms).size >= FlagshipWordCampSeries.size) break
+            if (flagshipWordCampEventsFromTerms(terms).size >= FlagshipWordCampSeries.size * FlagshipWordCampYearsPerSeries) break
             page += 1
         }
         return terms
@@ -346,26 +346,33 @@ internal fun contentLanguagesFromTerms(terms: List<TermDto>): List<ContentLangua
         .sortedBy { it.name.lowercase() }
 
 private val FlagshipWordCampSeries = listOf("asia", "europe", "us")
+private const val FlagshipWordCampYearsPerSeries = 2
 private val FlagshipWordCampEventSlug = Regex("""^wordcamp-(${FlagshipWordCampSeries.joinToString("|")})-(\d{4})$""")
 
 internal fun flagshipWordCampEventsFromTerms(terms: List<TermDto>): List<ContentEvent> {
     data class Candidate(val term: TermDto, val year: Int)
 
-    val newestBySeries = mutableMapOf<String, Candidate>()
+    val candidatesBySeries = mutableMapOf<String, MutableList<Candidate>>()
     terms.forEach { term ->
         if (term.name.isBlank() || term.count <= 0) return@forEach
         val match = FlagshipWordCampEventSlug.matchEntire(term.slug) ?: return@forEach
         val series = match.groupValues[1]
         val year = match.groupValues[2].toIntOrNull() ?: return@forEach
-        val current = newestBySeries[series]
-        if (current == null || year > current.year || (year == current.year && term.id > current.term.id)) {
-            newestBySeries[series] = Candidate(term = term, year = year)
-        }
+        candidatesBySeries.getOrPut(series) { mutableListOf() } += Candidate(term = term, year = year)
     }
 
-    return FlagshipWordCampSeries.mapNotNull { series ->
-        newestBySeries[series]?.term?.let {
-            ContentEvent(id = it.id, name = it.name, slug = it.slug, videoCount = it.count)
+    val selectedBySeries = candidatesBySeries.mapValues { (_, candidates) ->
+        candidates
+            .sortedWith(compareByDescending<Candidate> { it.year }.thenByDescending { it.term.id })
+            .distinctBy { it.year }
+            .take(FlagshipWordCampYearsPerSeries)
+    }
+
+    return (0 until FlagshipWordCampYearsPerSeries).flatMap { yearIndex ->
+        FlagshipWordCampSeries.mapNotNull { series ->
+            selectedBySeries[series]?.getOrNull(yearIndex)?.term?.let {
+                ContentEvent(id = it.id, name = it.name, slug = it.slug, videoCount = it.count)
+            }
         }
     }
 }

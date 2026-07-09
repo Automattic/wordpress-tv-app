@@ -124,53 +124,49 @@ fun PortraitCampCard(
     LaunchedEffect(event.slug) { coverUrl = resolveCover(event) }
     val colors = event.wordCampCardColors
 
-    Column(modifier) {
-        Card(
-            onClick = onClick,
-            modifier = Modifier.fillMaxWidth().height(230.dp).focusRequesterOrNone(focusRequester),
-            scale = CardDefaults.scale(focusedScale = 1.03f),
-        ) {
-            Box(Modifier.fillMaxSize()) {
-                // Brand gradient — the base, and the fallback if no cover.
-                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(colors)))
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth().height(230.dp).focusRequesterOrNone(focusRequester),
+        scale = CardDefaults.scale(focusedScale = 1.03f),
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            // Brand gradient — the base, and the fallback if no cover.
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(colors)))
 
-                // Real cover image, sized to the card and cropped.
-                if (coverUrl != null) {
-                    AsyncImage(
-                        model = coverUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+            // Real cover image, sized to the card and cropped.
+            if (coverUrl != null) {
+                AsyncImage(
+                    model = coverUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
 
-                // Full-card scrim: a light top darkening for cohesion, deepening
-                // into the brand colour at the bottom so the cover reads as this
-                // camp and the title stays legible over any art.
-                Box(
-                    Modifier.fillMaxSize().background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.Black.copy(alpha = 0.4f),
-                                Color.Black.copy(alpha = 0.1f),
-                                colors.last().copy(alpha = 0.98f),
-                            ),
+            // Full-card scrim: a light top darkening for cohesion, deepening
+            // into the brand colour at the bottom so the cover reads as this
+            // camp and the title stays legible over any art.
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Black.copy(alpha = 0.4f),
+                            Color.Black.copy(alpha = 0.1f),
+                            colors.last().copy(alpha = 0.98f),
                         ),
                     ),
-                )
+                ),
+            )
 
-                WordPressMark(
-                    modifier = Modifier.align(Alignment.TopStart).padding(18.dp).size(28.dp),
-                )
+            WordPressMark(
+                modifier = Modifier.align(Alignment.TopStart).padding(18.dp).size(28.dp),
+            )
 
-                Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
-                    Text("WordCamp", color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Text(event.wordCampDisplayPlace, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
+            Column(Modifier.align(Alignment.BottomStart).padding(18.dp)) {
+                Text("WordCamp", color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                Text(event.wordCampDisplayPlace, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Text(event.name, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
