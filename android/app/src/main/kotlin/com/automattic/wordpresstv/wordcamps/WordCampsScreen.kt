@@ -1,16 +1,10 @@
 package com.automattic.wordpresstv.wordcamps
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,12 +13,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.automattic.wordpresstv.R
@@ -40,7 +31,6 @@ import com.automattic.wordpresstv.feed.VideoQuery
 import com.automattic.wordpresstv.feed.VideoRail
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import androidx.tv.material3.Button
 import androidx.tv.material3.Text
 
 /**
@@ -53,8 +43,6 @@ fun WordCampsScreen(
     source: ContentSource,
     onPlay: (Video, ContentSource) -> Unit,
     onAuthRequired: () -> Unit,
-    onChangeLanguage: () -> Unit,
-    isLanguageFiltered: Boolean,
     modifier: Modifier = Modifier,
 ) {
     var events by remember(repository, source.id) { mutableStateOf<List<ContentEvent>>(emptyList()) }
@@ -63,19 +51,30 @@ fun WordCampsScreen(
     var canLoadMoreEvents by remember(repository, source.id) { mutableStateOf(true) }
     var eventPageFailed by remember(repository, source.id) { mutableStateOf(false) }
 
-    suspend fun loadNextEventPage() {
+    suspend fun loadEventPages() {
         if (isLoadingEventPage || !canLoadMoreEvents) return
         isLoadingEventPage = true
         eventPageFailed = false
+        var pageNumber = nextEventPage
+        var loadedEvents = events
         try {
-            val page = repository.listWordCampEvents(source, nextEventPage)
-            val knownIds = events.map { it.id }.toSet()
-            events = events + page.filter { it.id !in knownIds }
-            nextEventPage += 1
-            canLoadMoreEvents = page.isNotEmpty()
+            while (true) {
+                val page = repository.listWordCampEvents(source, pageNumber)
+                if (page.isEmpty()) {
+                    canLoadMoreEvents = false
+                    break
+                }
+                val knownIds = loadedEvents.map { it.id }.toSet()
+                loadedEvents = loadedEvents + page.filter { it.id !in knownIds }
+                pageNumber += 1
+                nextEventPage = pageNumber
+            }
+            events = loadedEvents
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
+            events = loadedEvents
+            nextEventPage = pageNumber
             eventPageFailed = true
         } finally {
             isLoadingEventPage = false
@@ -88,47 +87,37 @@ fun WordCampsScreen(
         isLoadingEventPage = false
         canLoadMoreEvents = true
         eventPageFailed = false
-        loadNextEventPage()
+        loadEventPages()
     }
 
     val scope = rememberCoroutineScope()
 
-    Column(modifier = modifier.fillMaxSize()) {
-        if (isLanguageFiltered) {
-            LanguageFilterNotice(onChangeLanguage = onChangeLanguage)
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(32.dp),
+    ) {
+        items(events, key = { event -> event.id }) { event ->
+            QueryVideoRail(
+                title = event.name,
+                repository = repository,
+                source = source,
+                query = VideoQuery.Event(event, applyLanguageFilter = false),
+                onPlay = onPlay,
+                onAuthRequired = onAuthRequired,
+            )
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(32.dp),
-        ) {
-            itemsIndexed(events, key = { _, event -> event.id }) { index, event ->
-                QueryVideoRail(
-                    title = event.name,
-                    repository = repository,
-                    source = source,
-                    query = VideoQuery.Event(event, applyLanguageFilter = true),
-                    onPlay = onPlay,
-                    onAuthRequired = onAuthRequired,
-                    hideWhenEmpty = true,
-                )
-                if (index == events.lastIndex) {
-                    LaunchedEffect(events.size, nextEventPage) { loadNextEventPage() }
-                }
-            }
-
-            if (isLoadingEventPage || eventPageFailed) {
-                item {
-                    when {
-                        isLoadingEventPage -> RailPlaceholder { CircularProgressIndicator(color = Color.White) }
-                        eventPageFailed -> RailPlaceholder {
-                            MessageWithAction(
-                                message = stringResource(R.string.wordcamps_load_error),
-                                action = stringResource(R.string.retry),
-                                onAction = { scope.launch { loadNextEventPage() } },
-                            )
-                        }
+        if (isLoadingEventPage || eventPageFailed) {
+            item(key = "wordcamp-pagination") {
+                when {
+                    isLoadingEventPage -> RailPlaceholder { CircularProgressIndicator(color = Color.White) }
+                    eventPageFailed -> RailPlaceholder {
+                        MessageWithAction(
+                            message = stringResource(R.string.wordcamps_load_error),
+                            action = stringResource(R.string.retry),
+                            onAction = { scope.launch { loadEventPages() } },
+                        )
                     }
                 }
             }
@@ -181,32 +170,6 @@ private fun QueryVideoRail(
                 resolvePoster = { model.posterUrl(it) },
                 onPlay = onPlay,
             )
-        }
-    }
-}
-
-@Composable
-private fun LanguageFilterNotice(onChangeLanguage: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .padding(horizontal = 56.dp)
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color.White.copy(alpha = 0.08f))
-            .padding(horizontal = 20.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = stringResource(R.string.wordcamps_hidden_by_language),
-            color = Color.White.copy(alpha = 0.78f),
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.weight(1f).padding(end = 20.dp),
-            maxLines = 2,
-        )
-        Button(onClick = onChangeLanguage) {
-            Text(stringResource(R.string.change_language))
         }
     }
 }

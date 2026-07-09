@@ -163,12 +163,10 @@ fun ContentRootScreen(
                             section = selected,
                             repository = repository,
                             store = store,
-                            contentLanguageSelection = contentLanguageSelection,
                             onPlay = ::play,
                             onOpenEvent = { selected = Section.WordCamp(it) },
                             resolveCover = ::eventCover,
                             onAuthRequired = ::routeToPairing,
-                            onLanguageSettings = { showSettings = true },
                         )
                     }
                 }
@@ -243,12 +241,10 @@ private fun Body(
     section: Section,
     repository: ContentRepository,
     store: WatchProgressStore,
-    contentLanguageSelection: ContentLanguageSelection,
     onPlay: (Video, ContentSource) -> Unit,
     onOpenEvent: (ContentEvent) -> Unit,
     resolveCover: suspend (ContentEvent) -> String?,
     onAuthRequired: () -> Unit,
-    onLanguageSettings: () -> Unit,
 ) {
     when (section) {
         Section.Home -> HomeScreen(
@@ -267,8 +263,6 @@ private fun Body(
                 source = Sources.wordpressTV,
                 onPlay = onPlay,
                 onAuthRequired = onAuthRequired,
-                onChangeLanguage = onLanguageSettings,
-                isLanguageFiltered = contentLanguageSelection.ids.isNotEmpty(),
             )
         } else {
             VideoGrid(

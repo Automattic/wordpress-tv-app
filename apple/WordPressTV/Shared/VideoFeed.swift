@@ -178,8 +178,6 @@ struct WordCampsView: View {
     let source: ContentSource
     let onPlay: (Video, ContentSource) -> Void
     let onAuthRequired: () -> Void
-    let onChangeLanguage: () -> Void
-    let isLanguageFiltered: Bool
 
     @State private var events: [ContentEvent] = []
     @State private var nextEventPage = 1
@@ -192,48 +190,30 @@ struct WordCampsView: View {
         repository: ContentRepository,
         source: ContentSource,
         onPlay: @escaping (Video, ContentSource) -> Void,
-        onAuthRequired: @escaping () -> Void = {},
-        onChangeLanguage: @escaping () -> Void = {},
-        isLanguageFiltered: Bool = false
+        onAuthRequired: @escaping () -> Void = {}
     ) {
         self.repository = repository
         self.source = source
         self.onPlay = onPlay
         self.onAuthRequired = onAuthRequired
-        self.onChangeLanguage = onChangeLanguage
-        self.isLanguageFiltered = isLanguageFiltered
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if isLanguageFiltered {
-                LanguageFilterNotice(onChangeLanguage: onChangeLanguage)
-                    .padding(.top, 20)
-                    .padding(.bottom, 8)
-            }
-
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 56) {
-                    ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
-                        QueryVideoRail(
-                            title: event.name,
-                            model: VideoFeedViewModel(repository: repository, source: source, query: .event(event, applyLanguageFilter: true)),
-                            source: source,
-                            onPlay: onPlay,
-                            onAuthRequired: onAuthRequired,
-                            hideWhenEmpty: true
-                        )
-                        .task {
-                            if index == events.count - 1 {
-                                await loadNextEventPageIfNeeded()
-                            }
-                        }
-                    }
-
-                    eventPaginationFooter
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 56) {
+                ForEach(events) { event in
+                    QueryVideoRail(
+                        title: event.name,
+                        model: VideoFeedViewModel(repository: repository, source: source, query: .event(event, applyLanguageFilter: false)),
+                        source: source,
+                        onPlay: onPlay,
+                        onAuthRequired: onAuthRequired
+                    )
                 }
-                .padding(.vertical, 40)
+
+                eventPaginationFooter
             }
+            .padding(.vertical, 40)
         }
         .task {
             guard !didStart else { return }
@@ -247,7 +227,7 @@ struct WordCampsView: View {
         if isLoadingEventPage {
             ProgressView()
                 .controlSize(.large)
-                .frame(maxWidth: .infinity, minHeight: 300)
+            .frame(maxWidth: .infinity, minHeight: 300)
         } else if eventPageFailed {
             Placeholder(
                 message: "Couldn’t load more WordCamps. Please try again.",
@@ -262,14 +242,25 @@ struct WordCampsView: View {
         guard !isLoadingEventPage && canLoadMoreEvents else { return }
         isLoadingEventPage = true
         eventPageFailed = false
+        var pageNumber = nextEventPage
+        var loadedEvents = events
         do {
-            let page = try await repository.listWordCampEvents(source: source, page: nextEventPage)
-            let knownIDs = Set(events.map(\.id))
-            let newEvents = page.filter { !knownIDs.contains($0.id) }
-            events += newEvents
-            nextEventPage += 1
-            canLoadMoreEvents = !page.isEmpty
+            while true {
+                let page = try await repository.listWordCampEvents(source: source, page: pageNumber)
+                if page.isEmpty {
+                    canLoadMoreEvents = false
+                    break
+                }
+                let knownIDs = Set(loadedEvents.map(\.id))
+                let newEvents = page.filter { !knownIDs.contains($0.id) }
+                loadedEvents += newEvents
+                pageNumber += 1
+                nextEventPage = pageNumber
+            }
+            events = loadedEvents
         } catch {
+            events = loadedEvents
+            nextEventPage = pageNumber
             eventPageFailed = true
         }
         isLoadingEventPage = false
@@ -336,24 +327,6 @@ private struct QueryVideoRail: View {
                 onPlay: onPlay
             )
         }
-    }
-}
-
-private struct LanguageFilterNotice: View {
-    let onChangeLanguage: () -> Void
-
-    var body: some View {
-        HStack(spacing: 24) {
-            Text("Some WordCamps are hidden by your language setting.")
-                .font(.callout.weight(.medium))
-                .foregroundStyle(.white.opacity(0.78))
-
-            Button("Change Language", action: onChangeLanguage)
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.08)))
-        .padding(.horizontal, 80)
     }
 }
 

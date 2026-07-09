@@ -17,8 +17,6 @@
     <string name="latest">Latest</string>
     <string name="wordcamps_load_error">Couldn\'t load WordCamps. Please try again.</string>
     <string name="no_wordcamps">No WordCamps yet.</string>
-    <string name="wordcamps_hidden_by_language">Some WordCamps are hidden by your language setting.</string>
-    <string name="change_language">Change Language</string>
 
     <!-- Search -->
     <string name="search_hint">Search talks, speakers, and topics</string>
