@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.automattic.wordpresstv.R
 import com.automattic.wordpresstv.core.data.ContentRepository
 import com.automattic.wordpresstv.core.domain.ContentEvent
@@ -26,12 +25,9 @@ import com.automattic.wordpresstv.core.domain.Video
 import com.automattic.wordpresstv.feed.MessageWithAction
 import com.automattic.wordpresstv.feed.RailPlaceholder
 import com.automattic.wordpresstv.feed.RailSection
-import com.automattic.wordpresstv.feed.VideoFeedViewModel
-import com.automattic.wordpresstv.feed.VideoQuery
 import com.automattic.wordpresstv.feed.VideoRail
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import androidx.tv.material3.Text
 
 /**
  * The WordCamps tab: event-taxonomy rails loaded page by page as the viewer
@@ -42,10 +38,9 @@ fun WordCampsScreen(
     repository: ContentRepository,
     source: ContentSource,
     onPlay: (Video, ContentSource) -> Unit,
-    onAuthRequired: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var events by remember(repository, source.id) { mutableStateOf<List<ContentEvent>>(emptyList()) }
+    var rails by remember(repository, source.id) { mutableStateOf<List<WordCampRail>>(emptyList()) }
     var nextEventPage by remember(repository, source.id) { mutableStateOf(1) }
     var isLoadingEventPage by remember(repository, source.id) { mutableStateOf(false) }
     var canLoadMoreEvents by remember(repository, source.id) { mutableStateOf(true) }
@@ -56,24 +51,36 @@ fun WordCampsScreen(
         isLoadingEventPage = true
         eventPageFailed = false
         var pageNumber = nextEventPage
-        var loadedEvents = events
+        val loadedRails = rails.toMutableList()
+        val startingRailCount = loadedRails.size
+        val knownIds = loadedRails.map { it.event.id }.toMutableSet()
         try {
-            while (true) {
+            while (loadedRails.size - startingRailCount < MIN_WORDCAMP_RAILS_PER_BATCH) {
                 val page = repository.listWordCampEvents(source, pageNumber)
                 if (page.isEmpty()) {
                     canLoadMoreEvents = false
                     break
                 }
-                val knownIds = loadedEvents.map { it.id }.toSet()
-                loadedEvents = loadedEvents + page.filter { it.id !in knownIds }
+                page.filter { knownIds.add(it.id) }.forEach { event ->
+                    val videos = repository.listByEvent(
+                        source = source,
+                        event = event,
+                        page = 1,
+                        applyLanguageFilter = true,
+                    )
+                    if (videos.isNotEmpty()) {
+                        loadedRails += WordCampRail(event = event, videos = videos)
+                        rails = loadedRails.toList()
+                    }
+                }
                 pageNumber += 1
-                nextEventPage = pageNumber
             }
-            events = loadedEvents
+            rails = loadedRails
+            nextEventPage = pageNumber
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
-            events = loadedEvents
+            rails = loadedRails
             nextEventPage = pageNumber
             eventPageFailed = true
         } finally {
@@ -82,12 +89,11 @@ fun WordCampsScreen(
     }
 
     LaunchedEffect(repository, source.id) {
-        events = emptyList()
+        rails = emptyList()
         nextEventPage = 1
         isLoadingEventPage = false
         canLoadMoreEvents = true
         eventPageFailed = false
-        loadEventPages()
     }
 
     val scope = rememberCoroutineScope()
@@ -97,19 +103,24 @@ fun WordCampsScreen(
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(32.dp),
     ) {
-        items(events, key = { event -> event.id }) { event ->
-            QueryVideoRail(
-                title = event.name,
-                repository = repository,
-                source = source,
-                query = VideoQuery.Event(event, applyLanguageFilter = false),
-                onPlay = onPlay,
-                onAuthRequired = onAuthRequired,
-            )
+        items(rails, key = { rail -> rail.event.id }) { rail ->
+            RailSection(rail.event.name) {
+                VideoRail(
+                    videos = rail.videos,
+                    source = source,
+                    resolvePoster = { repository.posterUrl(source, it) },
+                    onPlay = onPlay,
+                )
+            }
         }
 
-        if (isLoadingEventPage || eventPageFailed) {
+        if (canLoadMoreEvents || isLoadingEventPage || eventPageFailed) {
             item(key = "wordcamp-pagination") {
+                LaunchedEffect(nextEventPage, canLoadMoreEvents, eventPageFailed) {
+                    if (canLoadMoreEvents && !eventPageFailed && !isLoadingEventPage) {
+                        loadEventPages()
+                    }
+                }
                 when {
                     isLoadingEventPage -> RailPlaceholder { CircularProgressIndicator(color = Color.White) }
                     eventPageFailed -> RailPlaceholder {
@@ -119,57 +130,16 @@ fun WordCampsScreen(
                             onAction = { scope.launch { loadEventPages() } },
                         )
                     }
+                    else -> RailPlaceholder {}
                 }
             }
         }
     }
 }
 
-@Composable
-private fun QueryVideoRail(
-    title: String,
-    repository: ContentRepository,
-    source: ContentSource,
-    query: VideoQuery,
-    onPlay: (Video, ContentSource) -> Unit,
-    onAuthRequired: () -> Unit,
-    hideWhenEmpty: Boolean = false,
-) {
-    val model = remember(repository, source.id, query) { VideoFeedViewModel(repository, source, query) }
-    LaunchedEffect(repository, source.id, query) { model.load() }
-    val scope = rememberCoroutineScope()
-    if (hideWhenEmpty && model.state == VideoFeedViewModel.State.Empty) return
+private const val MIN_WORDCAMP_RAILS_PER_BATCH = 3
 
-    RailSection(title) {
-        when (val state = model.state) {
-            VideoFeedViewModel.State.Loading -> RailPlaceholder { CircularProgressIndicator(color = Color.White) }
-
-            VideoFeedViewModel.State.Failed -> RailPlaceholder {
-                MessageWithAction(
-                    message = stringResource(R.string.videos_load_error),
-                    action = stringResource(R.string.retry),
-                    onAction = { scope.launch { model.load() } },
-                )
-            }
-
-            VideoFeedViewModel.State.NeedsAuth -> RailPlaceholder {
-                MessageWithAction(
-                    message = stringResource(R.string.session_expired),
-                    action = stringResource(R.string.sign_in),
-                    onAction = onAuthRequired,
-                )
-            }
-
-            VideoFeedViewModel.State.Empty -> RailPlaceholder {
-                Text(stringResource(R.string.no_videos_here), color = Color.White.copy(alpha = 0.7f), fontSize = 20.sp)
-            }
-
-            is VideoFeedViewModel.State.Loaded -> VideoRail(
-                videos = state.videos,
-                source = source,
-                resolvePoster = { model.posterUrl(it) },
-                onPlay = onPlay,
-            )
-        }
-    }
-}
+private data class WordCampRail(
+    val event: ContentEvent,
+    val videos: List<Video>,
+)

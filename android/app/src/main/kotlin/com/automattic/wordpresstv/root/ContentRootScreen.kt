@@ -262,7 +262,6 @@ private fun Body(
                 repository = repository,
                 source = Sources.wordpressTV,
                 onPlay = onPlay,
-                onAuthRequired = onAuthRequired,
             )
         } else {
             VideoGrid(

@@ -177,48 +177,40 @@ struct WordCampsView: View {
     let repository: ContentRepository
     let source: ContentSource
     let onPlay: (Video, ContentSource) -> Void
-    let onAuthRequired: () -> Void
 
-    @State private var events: [ContentEvent] = []
+    @State private var rails: [WordCampRail] = []
     @State private var nextEventPage = 1
     @State private var isLoadingEventPage = false
     @State private var canLoadMoreEvents = true
     @State private var eventPageFailed = false
-    @State private var didStart = false
 
     init(
         repository: ContentRepository,
         source: ContentSource,
-        onPlay: @escaping (Video, ContentSource) -> Void,
-        onAuthRequired: @escaping () -> Void = {}
+        onPlay: @escaping (Video, ContentSource) -> Void
     ) {
         self.repository = repository
         self.source = source
         self.onPlay = onPlay
-        self.onAuthRequired = onAuthRequired
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 56) {
-                ForEach(events) { event in
-                    QueryVideoRail(
-                        title: event.name,
-                        model: VideoFeedViewModel(repository: repository, source: source, query: .event(event, applyLanguageFilter: false)),
-                        source: source,
-                        onPlay: onPlay,
-                        onAuthRequired: onAuthRequired
-                    )
+                ForEach(rails) { rail in
+                    RailSection(title: rail.event.name) {
+                        VideoRail(
+                            videos: rail.videos,
+                            source: source,
+                            resolvePoster: { video in await repository.posterURL(source: source, video: video) },
+                            onPlay: onPlay
+                        )
+                    }
                 }
 
                 eventPaginationFooter
             }
             .padding(.vertical, 40)
-        }
-        .task {
-            guard !didStart else { return }
-            didStart = true
-            await loadNextEventPageIfNeeded()
         }
     }
 
@@ -227,7 +219,7 @@ struct WordCampsView: View {
         if isLoadingEventPage {
             ProgressView()
                 .controlSize(.large)
-            .frame(maxWidth: .infinity, minHeight: 300)
+                .frame(maxWidth: .infinity, minHeight: 300)
         } else if eventPageFailed {
             Placeholder(
                 message: "Couldn’t load more WordCamps. Please try again.",
@@ -235,6 +227,12 @@ struct WordCampsView: View {
             )
             .frame(minHeight: 300)
             .padding(.horizontal, 80)
+        } else if canLoadMoreEvents {
+            Color.clear
+                .frame(maxWidth: .infinity, minHeight: 300)
+                .onAppear {
+                    Task { await loadNextEventPageIfNeeded() }
+                }
         }
     }
 
@@ -243,23 +241,35 @@ struct WordCampsView: View {
         isLoadingEventPage = true
         eventPageFailed = false
         var pageNumber = nextEventPage
-        var loadedEvents = events
+        var loadedRails = rails
+        let startingRailCount = loadedRails.count
+        var knownIDs = Set(loadedRails.map { $0.event.id })
         do {
-            while true {
+            while loadedRails.count - startingRailCount < minWordCampRailsPerBatch {
                 let page = try await repository.listWordCampEvents(source: source, page: pageNumber)
                 if page.isEmpty {
                     canLoadMoreEvents = false
                     break
                 }
-                let knownIDs = Set(loadedEvents.map(\.id))
-                let newEvents = page.filter { !knownIDs.contains($0.id) }
-                loadedEvents += newEvents
+                for event in page where !knownIDs.contains(event.id) {
+                    knownIDs.insert(event.id)
+                    let videos = try await repository.listByEvent(
+                        source: source,
+                        event: event,
+                        page: 1,
+                        applyLanguageFilter: true
+                    )
+                    if !videos.isEmpty {
+                        loadedRails.append(WordCampRail(event: event, videos: videos))
+                        rails = loadedRails
+                    }
+                }
                 pageNumber += 1
-                nextEventPage = pageNumber
             }
-            events = loadedEvents
+            rails = loadedRails
+            nextEventPage = pageNumber
         } catch {
-            events = loadedEvents
+            rails = loadedRails
             nextEventPage = pageNumber
             eventPageFailed = true
         }
@@ -267,67 +277,12 @@ struct WordCampsView: View {
     }
 }
 
-private struct QueryVideoRail: View {
-    let title: String
-    @State private var model: VideoFeedViewModel
-    let source: ContentSource
-    let onPlay: (Video, ContentSource) -> Void
-    let onAuthRequired: () -> Void
-    let hideWhenEmpty: Bool
+private let minWordCampRailsPerBatch = 3
 
-    init(
-        title: String,
-        model: VideoFeedViewModel,
-        source: ContentSource,
-        onPlay: @escaping (Video, ContentSource) -> Void,
-        onAuthRequired: @escaping () -> Void,
-        hideWhenEmpty: Bool = false
-    ) {
-        self.title = title
-        _model = State(initialValue: model)
-        self.source = source
-        self.onPlay = onPlay
-        self.onAuthRequired = onAuthRequired
-        self.hideWhenEmpty = hideWhenEmpty
-    }
-
-    var body: some View {
-        Group {
-            if hideWhenEmpty, case .empty = model.state {
-                EmptyView()
-            } else {
-                RailSection(title: title) {
-                    content
-                }
-            }
-        }
-        .task { await model.load() }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        switch model.state {
-        case .loading:
-            ProgressView()
-                .controlSize(.large)
-                .frame(maxWidth: .infinity, minHeight: 300)
-        case .needsAuth:
-            Placeholder(message: "Sign in again to continue.", action: ("Sign in", onAuthRequired))
-                .frame(minHeight: 300)
-        case .failed(let message):
-            Placeholder(message: message, action: ("Retry", { Task { await model.load() } }))
-                .frame(minHeight: 300)
-        case .empty:
-            Placeholder(message: "No videos here yet.").frame(minHeight: 300)
-        case .loaded(let videos):
-            VideoRail(
-                videos: videos,
-                source: source,
-                resolvePoster: model.posterURL,
-                onPlay: onPlay
-            )
-        }
-    }
+private struct WordCampRail: Identifiable {
+    var id: Int64 { event.id }
+    let event: ContentEvent
+    let videos: [Video]
 }
 
 /// Centered message + optional action, for the empty/error/needs-auth states.

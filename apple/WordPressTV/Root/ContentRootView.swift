@@ -157,8 +157,7 @@ struct ContentRootView: View {
                 WordCampsView(
                     repository: repository,
                     source: Sources.wordpressTV,
-                    onPlay: play,
-                    onAuthRequired: routeToPairing
+                    onPlay: play
                 )
             } else {
                 VideoGrid(
