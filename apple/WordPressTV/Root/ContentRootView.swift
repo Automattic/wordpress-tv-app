@@ -345,8 +345,15 @@ struct ContentRootView: View {
     private func play(_ video: Video, source: ContentSource) {
         Task {
             guard let asset = try? await repository.resolvePlayback(source: source, video: video) else { return }
+            let posterURL: URL?
+            if let existingPosterURL = video.posterUrl {
+                posterURL = existingPosterURL
+            } else {
+                posterURL = await repository.posterURL(source: source, video: video)
+            }
+            let playableVideo = video.withPosterURL(posterURL)
             let resume = store.progress(forGuid: video.videoGuid)?.positionSeconds ?? 0
-            playback = PlaybackRequest(asset: asset, video: video, resumeAt: resume)
+            playback = PlaybackRequest(asset: asset, video: playableVideo, resumeAt: resume)
         }
     }
 

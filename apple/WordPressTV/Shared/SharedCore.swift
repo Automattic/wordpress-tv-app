@@ -7,7 +7,7 @@ private typealias SharedContentLanguage = WordPressTVSharedCore.ContentLanguage
 private typealias SharedContentSource = WordPressTVSharedCore.ContentSource
 private typealias SharedPlaybackAsset = WordPressTVSharedCore.PlaybackAsset
 private typealias SharedRepository = WordPressTVSharedCore.WpComContentRepository
-private typealias SharedVideo = WordPressTVSharedCore.Video
+typealias SharedVideo = WordPressTVSharedCore.Video
 
 struct Account: Equatable, Sendable, Codable {
     let displayName: String
@@ -383,7 +383,7 @@ private extension PlaybackAsset.Kind {
     }
 }
 
-private extension Video {
+extension Video {
     init(shared: SharedVideo) {
         self.init(
             id: shared.id,
@@ -406,6 +406,19 @@ private extension Video {
             posterUrl: posterUrl?.absoluteString,
             durationSeconds: durationSeconds.map { KotlinInt(int: Int32($0)) },
             sourceId: sourceID,
+            playbackToken: playbackToken
+        )
+    }
+
+    func withPosterURL(_ posterURL: URL?) -> Video {
+        Video(
+            id: id,
+            videoGuid: videoGuid,
+            title: title,
+            description: description,
+            posterUrl: posterURL ?? posterUrl,
+            durationSeconds: durationSeconds,
+            sourceID: sourceID,
             playbackToken: playbackToken
         )
     }

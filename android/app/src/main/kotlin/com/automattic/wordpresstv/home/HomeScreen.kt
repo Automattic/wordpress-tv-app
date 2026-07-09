@@ -79,6 +79,12 @@ fun HomeScreen(
                 RailSection(stringResource(R.string.continue_watching)) {
                     ContinueWatchingRail(
                         items = continueWatching,
+                        resolvePoster = { item ->
+                            runCatching {
+                                repository.posterUrl(Sources.sourceWithId(item.sourceId), item.video)
+                            }.getOrNull()
+                        },
+                        onPosterResolved = store::setPosterUrl,
                         onPlay = onPlay,
                         firstCardFocus = firstCardFocus,
                     )
@@ -115,6 +121,8 @@ fun HomeScreen(
 @Composable
 private fun ContinueWatchingRail(
     items: List<WatchProgress>,
+    resolvePoster: suspend (WatchProgress) -> String?,
+    onPosterResolved: (String, String) -> Unit,
     onPlay: (Video, ContentSource) -> Unit,
     firstCardFocus: FocusRequester?,
 ) {
@@ -126,6 +134,8 @@ private fun ContinueWatchingRail(
         itemsIndexed(items, key = { _, item -> item.videoGuid }) { index, item ->
             ContinueWatchingCard(
                 progress = item,
+                resolvePoster = resolvePoster,
+                onPosterResolved = onPosterResolved,
                 onClick = { onPlay(item.video, Sources.sourceWithId(item.sourceId)) },
                 focusRequester = if (index == 0) firstCardFocus else null,
             )

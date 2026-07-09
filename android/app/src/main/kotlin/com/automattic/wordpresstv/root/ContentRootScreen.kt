@@ -103,8 +103,10 @@ fun ContentRootScreen(
     fun play(video: Video, source: ContentSource) {
         scope.launch {
             val asset = runCatching { repository.resolvePlayback(source, video) }.getOrNull() ?: return@launch
+            val posterUrl = video.posterUrl ?: runCatching { repository.posterUrl(source, video) }.getOrNull()
+            val playableVideo = if (posterUrl != video.posterUrl) video.copy(posterUrl = posterUrl) else video
             val resumeMs = store.progress(video.videoGuid)?.positionMs ?: 0L
-            playing = PlaybackRequest(asset = asset, video = video, resumeAtMs = resumeMs)
+            playing = PlaybackRequest(asset = asset, video = playableVideo, resumeAtMs = resumeMs)
         }
     }
 

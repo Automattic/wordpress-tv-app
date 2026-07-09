@@ -154,12 +154,16 @@ struct PortraitCampCard: View {
 struct ContinueWatchingCard: View {
     let progress: WatchProgress
     var width: CGFloat = 440
+    let resolvePoster: @MainActor (WatchProgress) async -> URL?
+    let onPosterResolved: @MainActor (String, URL) -> Void
     let onSelect: () -> Void
+
+    @State private var posterURL: URL?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Button(action: onSelect) {
-                PosterImage(url: progress.posterURL)
+                PosterImage(url: posterURL)
                     .overlay(alignment: .bottom) {
                         ResumeBar(fraction: progress.fractionComplete)
                             .padding(.horizontal, 12)
@@ -176,6 +180,13 @@ struct ContinueWatchingCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(width: width)
+        .task(id: "\(progress.videoGuid)-\(progress.posterURLString ?? "")") {
+            posterURL = progress.posterURL
+            if posterURL == nil, let resolved = await resolvePoster(progress) {
+                posterURL = resolved
+                onPosterResolved(progress.videoGuid, resolved)
+            }
+        }
     }
 }
 

@@ -182,16 +182,30 @@ fun PortraitCampCard(
 @Composable
 fun ContinueWatchingCard(
     progress: WatchProgress,
+    resolvePoster: suspend (WatchProgress) -> String?,
+    onPosterResolved: (String, String) -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
 ) {
+    var posterUrl by remember(progress.videoGuid) { mutableStateOf(progress.posterUrl) }
+    LaunchedEffect(progress.videoGuid, progress.posterUrl) {
+        posterUrl = progress.posterUrl
+        if (posterUrl == null) {
+            val resolved = resolvePoster(progress)
+            if (resolved != null) {
+                posterUrl = resolved
+                onPosterResolved(progress.videoGuid, resolved)
+            }
+        }
+    }
+
     Column(modifier) {
         Card(onClick = onClick, modifier = Modifier.width(320.dp).focusRequesterOrNone(focusRequester)) {
             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
-                PosterBox(progress.posterUrl, Modifier.fillMaxSize())
+                PosterBox(posterUrl, Modifier.fillMaxSize())
                 ResumeBar(
-                    fraction = progress.fractionComplete,
+                    fraction = progress.fractionComplete.toFloat(),
                     modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp),
                 )
             }
