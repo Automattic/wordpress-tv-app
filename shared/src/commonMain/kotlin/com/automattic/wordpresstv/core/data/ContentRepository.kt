@@ -1,6 +1,7 @@
 package com.automattic.wordpresstv.core.data
 
 import com.automattic.wordpresstv.core.domain.CategoryRef
+import com.automattic.wordpresstv.core.domain.ContentEvent
 import com.automattic.wordpresstv.core.domain.ContentLanguage
 import com.automattic.wordpresstv.core.domain.ContentSource
 import com.automattic.wordpresstv.core.domain.PlaybackAsset
@@ -34,6 +35,17 @@ interface ContentRepository {
     suspend fun listByCategory(
         source: ContentSource,
         category: CategoryRef,
+        page: Int,
+        applyLanguageFilter: Boolean = true,
+    ): List<Video>
+
+    /** Recent WordCamp event terms from the WordPress.tv `event` taxonomy. */
+    suspend fun listWordCampEvents(source: ContentSource, limit: Int = 8): List<ContentEvent>
+
+    /** Videos in [event] for [source]. [page] is 1-based. */
+    suspend fun listByEvent(
+        source: ContentSource,
+        event: ContentEvent,
         page: Int,
         applyLanguageFilter: Boolean = true,
     ): List<Video>

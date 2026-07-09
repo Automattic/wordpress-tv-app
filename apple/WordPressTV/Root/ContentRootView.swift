@@ -59,7 +59,7 @@ struct ContentLanguageSelection: Equatable, Sendable {
 }
 
 /// The app shell: a persistent top nav (the design's pill bar) over a body that
-/// swaps between the railed Home, a category grid, flagship-camp drill-ins, and
+/// swaps between the railed Home, a category grid, WordCamp event drill-ins, and
 /// search. Playback is hoisted here so any screen can request it through one
 /// `play` path — which also wires the resume position and progress recording.
 ///
@@ -87,14 +87,14 @@ struct ContentRootView: View {
         _auth = State(initialValue: auth)
     }
 
-    /// A destination in the top nav (plus the flagship drill-in, which no pill
+    /// A destination in the top nav (plus the WordCamp drill-in, which no pill
     /// selects).
     enum Section: Hashable {
         case home
         case category(NavCategory)
         case search
         case a8c
-        case flagship(FlagshipCamp)
+        case wordCamp(ContentEvent)
     }
 
     var body: some View {
@@ -147,8 +147,8 @@ struct ContentRootView: View {
                 source: Sources.wordpressTV,
                 store: store,
                 onPlay: play,
-                onOpenCamp: { selected = .flagship($0) },
-                resolveCover: campCover,
+                onOpenEvent: { selected = .wordCamp($0) },
+                resolveCover: eventCover,
                 onAuthRequired: routeToPairing
             )
 
@@ -161,9 +161,9 @@ struct ContentRootView: View {
                 onAuthRequired: routeToPairing
             )
 
-        case .flagship(let camp):
+        case .wordCamp(let event):
             VStack(alignment: .leading, spacing: 8) {
-                Text(camp.title)
+                Text(event.name)
                     .font(.title.weight(.bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 80)
@@ -171,7 +171,7 @@ struct ContentRootView: View {
                 VideoGrid(
                     repository: repository,
                     source: Sources.wordpressTV,
-                    query: .collection(camp.ref),
+                    query: .event(event),
                     onPlay: play,
                     onAuthRequired: routeToPairing
                 )
@@ -197,7 +197,7 @@ struct ContentRootView: View {
         switch selected {
         case .home: "home"
         case .category(let c): "cat-\(c.slug)"
-        case .flagship(let c): "camp-\(c.slug)"
+        case .wordCamp(let e): "event-\(e.slug)"
         case .search: "search"
         case .a8c: "a8c"
         }
@@ -326,12 +326,12 @@ struct ContentRootView: View {
 
     // MARK: Playback
 
-    /// A flagship card's cover: the newest video's poster in that camp's
-    /// category. Best-effort — the card keeps its brand gradient if this fails.
-    private func campCover(_ camp: FlagshipCamp) async -> URL? {
-        let videos = try? await repository.listByCategory(
+    /// A WordCamp card's cover: the newest video's poster in that event.
+    /// Best-effort — the card keeps its brand gradient if this fails.
+    private func eventCover(_ event: ContentEvent) async -> URL? {
+        let videos = try? await repository.listByEvent(
             source: Sources.wordpressTV,
-            category: camp.ref,
+            event: event,
             page: 1,
             applyLanguageFilter: false
         )

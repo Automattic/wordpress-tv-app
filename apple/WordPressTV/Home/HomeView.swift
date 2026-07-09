@@ -2,36 +2,44 @@ import SwiftUI
 import Observation
 
 /// The railed landing screen from the design: stacked horizontal shelves —
-/// Continue Watching (when the viewer has any), the curated Flagship WordCamps,
-/// and Latest. Everything but the flagship art is live WordPress.tv content.
+/// Continue Watching (when the viewer has any), recent WordCamp events, and
+/// Latest. Everything is live WordPress.tv content.
 struct HomeView: View {
     let repository: ContentRepository
     let source: ContentSource
     let store: WatchProgressStore
     /// Resolve + present the player for a tapped video.
     let onPlay: (Video, ContentSource) -> Void
-    /// Open a flagship camp's full video grid.
-    let onOpenCamp: (FlagshipCamp) -> Void
-    /// Resolve a flagship card's cover image (its newest video poster).
-    let resolveCover: (FlagshipCamp) async -> URL?
+    /// Open a WordCamp event's full video grid.
+    let onOpenEvent: (ContentEvent) -> Void
+    /// Resolve an event card's cover image (its newest video poster).
+    let resolveCover: (ContentEvent) async -> URL?
     let onAuthRequired: () -> Void
 
     @State private var model: VideoFeedViewModel
+    @State private var wordCampState: WordCampState = .loading
+
+    private enum WordCampState: Equatable {
+        case loading
+        case loaded([ContentEvent])
+        case empty
+        case failed
+    }
 
     init(
         repository: ContentRepository,
         source: ContentSource,
         store: WatchProgressStore,
         onPlay: @escaping (Video, ContentSource) -> Void,
-        onOpenCamp: @escaping (FlagshipCamp) -> Void,
-        resolveCover: @escaping (FlagshipCamp) async -> URL?,
+        onOpenEvent: @escaping (ContentEvent) -> Void,
+        resolveCover: @escaping (ContentEvent) async -> URL?,
         onAuthRequired: @escaping () -> Void
     ) {
         self.repository = repository
         self.source = source
         self.store = store
         self.onPlay = onPlay
-        self.onOpenCamp = onOpenCamp
+        self.onOpenEvent = onOpenEvent
         self.resolveCover = resolveCover
         self.onAuthRequired = onAuthRequired
         _model = State(initialValue: VideoFeedViewModel(repository: repository, source: source, query: .latest))
@@ -46,8 +54,8 @@ struct HomeView: View {
                     }
                 }
 
-                RailSection(title: "Flagship WordCamps") {
-                    flagshipRail
+                RailSection(title: "Recent WordCamps") {
+                    wordCampRail
                 }
 
                 RailSection(title: "Latest") {
@@ -57,6 +65,7 @@ struct HomeView: View {
             .padding(.vertical, 40)
         }
         .task { await model.load() }
+        .task { await loadWordCampEvents() }
     }
 
     // MARK: Rails
@@ -88,15 +97,41 @@ struct HomeView: View {
         )
     }
 
-    private var flagshipRail: some View {
-        ScrollView(.horizontal) {
-            LazyHStack(alignment: .top, spacing: 40) {
-                ForEach(Catalog.flagshipCamps) { camp in
-                    PortraitCampCard(camp: camp, resolveCover: resolveCover) { onOpenCamp(camp) }
+    @ViewBuilder
+    private var wordCampRail: some View {
+        switch wordCampState {
+        case .loading:
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, minHeight: 300)
+        case .failed:
+            Placeholder(message: "Couldn’t load WordCamps. Please try again.", action: ("Retry", { Task { await loadWordCampEvents() } }))
+                .frame(minHeight: 300)
+        case .empty:
+            Placeholder(message: "No WordCamps yet.").frame(minHeight: 300)
+        case .loaded(let events):
+            ScrollView(.horizontal) {
+                LazyHStack(alignment: .top, spacing: 40) {
+                    ForEach(events) { event in
+                        PortraitCampCard(event: event, resolveCover: resolveCover) { onOpenEvent(event) }
+                    }
                 }
+                .padding(.horizontal, 80)
+                .padding(.vertical, 20)
             }
-            .padding(.horizontal, 80)
-            .padding(.vertical, 20)
+        }
+    }
+
+    private func loadWordCampEvents() async {
+        wordCampState = .loading
+        do {
+            let events = try await repository.listWordCampEvents(
+                source: source,
+                limit: Catalog.wordCampEventLimit
+            )
+            wordCampState = events.isEmpty ? .empty : .loaded(events)
+        } catch {
+            wordCampState = .failed
         }
     }
 

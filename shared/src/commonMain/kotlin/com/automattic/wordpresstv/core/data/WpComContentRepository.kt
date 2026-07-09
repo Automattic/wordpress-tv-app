@@ -1,6 +1,7 @@
 package com.automattic.wordpresstv.core.data
 
 import com.automattic.wordpresstv.core.domain.CategoryRef
+import com.automattic.wordpresstv.core.domain.ContentEvent
 import com.automattic.wordpresstv.core.domain.ContentLanguage
 import com.automattic.wordpresstv.core.domain.ContentSource
 import com.automattic.wordpresstv.core.domain.PlaybackAsset
@@ -14,8 +15,8 @@ import kotlinx.serialization.json.Json
  *
  * Posts use wp/v2 (`/wp/v2/sites/{site}/posts`) because that endpoint supports
  * filtering by custom taxonomy term IDs, including WordPress.tv's `language`
- * taxonomy. Playback and posters still use the v1.1 video-info endpoint because
- * wp/v2 posts do not include VideoPress attachment metadata.
+ * and `event` taxonomies. Playback and posters still use the v1.1 video-info
+ * endpoint because wp/v2 posts do not include VideoPress attachment metadata.
  *
  * [contentLanguageTermIds] are WordPress.tv `language` taxonomy term IDs from
  * the app's explicit content-language setting. Browse feeds apply that language
@@ -33,6 +34,7 @@ class WpComContentRepository(
     private val json = Json { ignoreUnknownKeys = true }
     private val termCacheLock = Mutex()
     private val languageCache = mutableMapOf<String, List<ContentLanguage>>()
+    private val eventCache = mutableMapOf<String, List<ContentEvent>>()
     private val categoryIdCache = mutableMapOf<String, Long>()
 
     /**
@@ -109,6 +111,52 @@ class WpComContentRepository(
         )
     }
 
+    override suspend fun listWordCampEvents(source: ContentSource, limit: Int): List<ContentEvent> =
+        listWordCampEvents(source, limit, accessToken = null)
+
+    suspend fun listWordCampEvents(source: ContentSource, limit: Int, accessToken: String?): List<ContentEvent> {
+        if (limit <= 0) return emptyList()
+        if (source.auth != ContentSource.Auth.NONE) return emptyList()
+        termCacheLock.withLock {
+            eventCache[source.id]?.let { return it.take(limit) }
+            val events = wordCampEventsFromTerms(
+                fetchTerms(
+                    source = source,
+                    taxonomy = "event",
+                    search = "WordCamp",
+                    orderBy = "id",
+                    order = "desc",
+                    accessToken = accessToken,
+                ),
+            )
+            eventCache[source.id] = events
+            return events.take(limit)
+        }
+    }
+
+    override suspend fun listByEvent(
+        source: ContentSource,
+        event: ContentEvent,
+        page: Int,
+        applyLanguageFilter: Boolean,
+    ): List<Video> =
+        listByEvent(source, event, page, applyLanguageFilter = applyLanguageFilter, accessToken = null)
+
+    suspend fun listByEvent(
+        source: ContentSource,
+        event: ContentEvent,
+        page: Int,
+        applyLanguageFilter: Boolean,
+        accessToken: String?,
+    ): List<Video> =
+        listPosts(
+            source = source,
+            page = page,
+            eventIds = listOf(event.id),
+            applyLanguageFilter = applyLanguageFilter,
+            accessToken = accessToken,
+        )
+
     override suspend fun search(source: ContentSource, query: String, page: Int): List<Video> =
         search(source, query, page, accessToken = null)
 
@@ -144,6 +192,7 @@ class WpComContentRepository(
         source: ContentSource,
         page: Int,
         categoryIds: List<Long> = emptyList(),
+        eventIds: List<Long> = emptyList(),
         search: String? = null,
         applyLanguageFilter: Boolean = true,
         accessToken: String? = null,
@@ -154,6 +203,7 @@ class WpComContentRepository(
             "_fields" to "id,status,title,excerpt,content",
         )
         categoryIds.forEach { query += "categories[]" to it.toString() }
+        eventIds.forEach { query += "event[]" to it.toString() }
         if (applyLanguageFilter) {
             languageIds(source).forEach { query += "language[]" to it.toString() }
         }
@@ -185,13 +235,20 @@ class WpComContentRepository(
         source: ContentSource,
         taxonomy: String,
         slug: String? = null,
+        search: String? = null,
+        orderBy: String? = null,
+        order: String? = null,
+        perPage: Int = 100,
         accessToken: String? = null,
     ): List<TermDto> {
         val query = mutableListOf(
-            "_fields" to "id,name,slug",
-            "per_page" to "100",
+            "_fields" to "id,name,slug,count",
+            "per_page" to perPage.toString(),
         )
         slug?.let { query += "slug" to it }
+        search?.let { query += "search" to it }
+        orderBy?.let { query += "orderby" to it }
+        order?.let { query += "order" to it }
         val url = apiUrl(POSTS_API_BASE, "sites", source.wpcomSite, taxonomy, query = query)
         return try {
             decode<List<TermDto>>(getBody(url, tokenFor(source, accessToken)))
@@ -271,3 +328,15 @@ internal fun contentLanguagesFromTerms(terms: List<TermDto>): List<ContentLangua
         .distinctBy { it.id }
         .map { ContentLanguage(id = it.id, name = it.name, slug = it.slug) }
         .sortedBy { it.name.lowercase() }
+
+private val WordCampEventSlug = Regex("""^wordcamp-.+-\d{4}$""")
+
+internal fun wordCampEventsFromTerms(terms: List<TermDto>): List<ContentEvent> =
+    terms
+        .filter { term ->
+            term.name.isNotBlank() &&
+                WordCampEventSlug.matches(term.slug) &&
+                term.count > 0
+        }
+        .distinctBy { it.id }
+        .map { ContentEvent(id = it.id, name = it.name, slug = it.slug, videoCount = it.count) }

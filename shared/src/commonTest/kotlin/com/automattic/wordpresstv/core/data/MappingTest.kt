@@ -84,4 +84,24 @@ class MappingTest {
             contentLanguagesFromTerms(terms).map { it.id to it.name },
         )
     }
+
+    @Test fun mapsMainWordCampEventTermsFromApiOrder() {
+        val terms = listOf(
+            TermDto(id = 40, name = "WordCamp Mannheim 2026", slug = "wordcamp-mannheim-2026", count = 18),
+            TermDto(
+                id = 30,
+                name = "WordCamp Europe 2026 Contributor Day Online",
+                slug = "wordcamp-europe-2026-contributor-day-online",
+                count = 1,
+            ),
+            TermDto(id = 20, name = "WordPress Meetup Badajoz", slug = "wordpress-meetup-badajoz", count = 1),
+            TermDto(id = 10, name = "WordCamp Empty 2026", slug = "wordcamp-empty-2026", count = 0),
+            TermDto(id = 40, name = "Duplicate", slug = "wordcamp-duplicate-2026", count = 12),
+        )
+
+        assertEquals(
+            listOf(40L to "WordCamp Mannheim 2026"),
+            wordCampEventsFromTerms(terms).map { it.id to it.name },
+        )
+    }
 }

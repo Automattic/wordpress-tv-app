@@ -6,7 +6,7 @@ import Observation
 enum VideoQuery: Equatable {
     case latest
     case category(CategoryRef)
-    case collection(CategoryRef)
+    case event(ContentEvent)
     case search(String)
 }
 
@@ -65,10 +65,10 @@ final class VideoFeedViewModel {
                 page: 1,
                 applyLanguageFilter: true
             )
-        case .collection(let ref):
-            return try await repository.listByCategory(
+        case .event(let event):
+            return try await repository.listByEvent(
                 source: source,
-                category: ref,
+                event: event,
                 page: 1,
                 applyLanguageFilter: false
             )

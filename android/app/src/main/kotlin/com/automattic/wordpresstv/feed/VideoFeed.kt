@@ -33,6 +33,7 @@ import com.automattic.wordpresstv.R
 import com.automattic.wordpresstv.core.data.ContentRepository
 import com.automattic.wordpresstv.core.data.RepositoryException
 import com.automattic.wordpresstv.core.domain.CategoryRef
+import com.automattic.wordpresstv.core.domain.ContentEvent
 import com.automattic.wordpresstv.core.domain.ContentSource
 import com.automattic.wordpresstv.core.domain.Video
 import com.automattic.wordpresstv.ui.VideoCard
@@ -49,7 +50,7 @@ import androidx.tv.material3.Text
 sealed interface VideoQuery {
     data object Latest : VideoQuery
     data class Category(val category: CategoryRef) : VideoQuery
-    data class Collection(val category: CategoryRef) : VideoQuery
+    data class Event(val event: ContentEvent) : VideoQuery
     data class Search(val term: String) : VideoQuery
 }
 
@@ -98,9 +99,9 @@ class VideoFeedViewModel(
             page = 1,
             applyLanguageFilter = true,
         )
-        is VideoQuery.Collection -> repository.listByCategory(
+        is VideoQuery.Event -> repository.listByEvent(
             source = source,
-            category = query.category,
+            event = query.event,
             page = 1,
             applyLanguageFilter = false,
         )

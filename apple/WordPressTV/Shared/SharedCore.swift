@@ -3,6 +3,7 @@ import WordPressTVSharedCore
 
 private typealias SharedAccount = WordPressTVSharedCore.Account
 private typealias SharedCategoryRef = WordPressTVSharedCore.CategoryRef
+private typealias SharedContentEvent = WordPressTVSharedCore.ContentEvent
 private typealias SharedContentLanguage = WordPressTVSharedCore.ContentLanguage
 private typealias SharedContentSource = WordPressTVSharedCore.ContentSource
 private typealias SharedPlaybackAsset = WordPressTVSharedCore.PlaybackAsset
@@ -24,6 +25,13 @@ struct ContentLanguage: Identifiable, Equatable, Sendable {
     let id: Int64
     let name: String
     let slug: String
+}
+
+struct ContentEvent: Identifiable, Hashable, Sendable {
+    let id: Int64
+    let name: String
+    let slug: String
+    let videoCount: Int
 }
 
 struct ContentSource: Identifiable, Equatable, Sendable {
@@ -80,6 +88,13 @@ protocol ContentRepository: Sendable {
         page: Int,
         applyLanguageFilter: Bool
     ) async throws -> [Video]
+    func listWordCampEvents(source: ContentSource, limit: Int) async throws -> [ContentEvent]
+    func listByEvent(
+        source: ContentSource,
+        event: ContentEvent,
+        page: Int,
+        applyLanguageFilter: Bool
+    ) async throws -> [Video]
     func search(source: ContentSource, query: String, page: Int) async throws -> [Video]
     func listLanguages(source: ContentSource) async throws -> [ContentLanguage]
     func setContentLanguageTermIds(_ ids: [Int64])
@@ -89,6 +104,12 @@ extension ContentRepository {
     func listByCategory(source: ContentSource, category: CategoryRef, page: Int) async throws -> [Video] {
         try await listByCategory(source: source, category: category, page: page, applyLanguageFilter: true)
     }
+
+    func listByEvent(source: ContentSource, event: ContentEvent, page: Int) async throws -> [Video] {
+        try await listByEvent(source: source, event: event, page: page, applyLanguageFilter: true)
+    }
+
+    func listWordCampEvents(source: ContentSource, limit: Int) async throws -> [ContentEvent] { [] }
 
     func listLanguages(source: ContentSource) async throws -> [ContentLanguage] { [] }
 
@@ -192,6 +213,39 @@ final class WPComContentRepository: ContentRepository, @unchecked Sendable {
             try await core.listByCategory(
                 source: source.shared,
                 category: category.shared,
+                page: Int32(page),
+                applyLanguageFilter: applyLanguageFilter,
+                accessToken: accessToken
+            )
+        }
+        return videos.map(Video.init(shared:))
+    }
+
+    func listWordCampEvents(source: ContentSource, limit: Int) async throws -> [ContentEvent] {
+        let core = currentCore()
+        let accessToken = await token(for: source)
+        let events = try await mapErrors {
+            try await core.listWordCampEvents(
+                source: source.shared,
+                limit: Int32(limit),
+                accessToken: accessToken
+            )
+        }
+        return events.map(ContentEvent.init(shared:))
+    }
+
+    func listByEvent(
+        source: ContentSource,
+        event: ContentEvent,
+        page: Int,
+        applyLanguageFilter: Bool
+    ) async throws -> [Video] {
+        let core = currentCore()
+        let accessToken = await token(for: source)
+        let videos = try await mapErrors {
+            try await core.listByEvent(
+                source: source.shared,
+                event: event.shared,
                 page: Int32(page),
                 applyLanguageFilter: applyLanguageFilter,
                 accessToken: accessToken
@@ -311,6 +365,26 @@ private extension CategoryRef {
 private extension ContentLanguage {
     init(shared: SharedContentLanguage) {
         self.init(id: shared.id, name: shared.name, slug: shared.slug)
+    }
+}
+
+private extension ContentEvent {
+    init(shared: SharedContentEvent) {
+        self.init(
+            id: shared.id,
+            name: shared.name,
+            slug: shared.slug,
+            videoCount: Int(shared.videoCount)
+        )
+    }
+
+    var shared: SharedContentEvent {
+        SharedContentEvent(
+            id: id,
+            name: name,
+            slug: slug,
+            videoCount: Int32(videoCount)
+        )
     }
 }
 

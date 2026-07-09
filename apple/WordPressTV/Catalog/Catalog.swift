@@ -1,11 +1,7 @@
 import SwiftUI
 
-/// The app's curated browse structure: the top-nav categories and the flagship
-/// WordCamps shelf. Both are deliberately hand-picked rather than pulled from
-/// the site's 400+ raw taxonomy terms — WordPress.tv exposes everything as flat
-/// categories, so the app decides which few belong in the primary navigation
-/// and which events are "flagship". Each entry maps to a real WordPress.tv
-/// category slug, so the content behind it is live, not stubbed.
+/// The app's curated browse structure: the top-nav categories plus small bits of
+/// presentation metadata for taxonomy-backed WordCamp event cards.
 enum Catalog {
 
     /// The content-category tabs in the top nav (the mock's Home / WordCamps /
@@ -18,30 +14,17 @@ enum Catalog {
         NavCategory(title: "How To", slug: "how-to"),
     ]
 
-    /// The "Flagship WordCamps" shelf on Home. Portrait cards, one per flagship
-    /// event, each opening that camp's videos. WordPress.tv has no key-art per
-    /// event, so the card art is an app-provided brand gradient + wordmark.
-    static let flagshipCamps: [FlagshipCamp] = [
-        FlagshipCamp(
-            title: "WordCamp Asia",
-            slug: "asia",
-            colors: [Color(hex: 0x4B2FBF), Color(hex: 0x2A1170)]
-        ),
-        FlagshipCamp(
-            title: "WordCamp Europe",
-            slug: "europe",
-            colors: [Color(hex: 0x0E2A6B), Color(hex: 0x081536)]
-        ),
-        FlagshipCamp(
-            title: "WordCamp Canada",
-            slug: "canada",
-            colors: [Color(hex: 0x0F5C4E), Color(hex: 0x06302A)]
-        ),
-        FlagshipCamp(
-            title: "WordCamp US",
-            slug: "us",
-            colors: [Color(hex: 0xB0325A), Color(hex: 0x5A1030)]
-        ),
+    /// Number of recent WordCamp event taxonomy terms to show on Home.
+    static let wordCampEventLimit = 8
+
+    /// Stable card palettes for event terms, selected from the event slug.
+    static let eventPalettes: [[Color]] = [
+        [Color(hex: 0x4B2FBF), Color(hex: 0x2A1170)],
+        [Color(hex: 0x0E5A70), Color(hex: 0x06303D)],
+        [Color(hex: 0x0F5C4E), Color(hex: 0x06302A)],
+        [Color(hex: 0xB0325A), Color(hex: 0x5A1030)],
+        [Color(hex: 0x7A5C12), Color(hex: 0x3D2C08)],
+        [Color(hex: 0x3E6C23), Color(hex: 0x1E3610)],
     ]
 }
 
@@ -55,23 +38,29 @@ struct NavCategory: Identifiable, Hashable {
     var ref: CategoryRef { CategoryRef(id: slug, name: title, slug: slug) }
 }
 
-/// A curated flagship WordCamp on the Home shelf.
-struct FlagshipCamp: Identifiable, Hashable {
-    let title: String
-    let slug: String
-    /// Top-to-bottom gradient for the portrait card art.
-    let colors: [Color]
-    var id: String { slug }
-
-    var ref: CategoryRef { CategoryRef(id: slug, name: title, slug: slug) }
-}
-
 extension Sources {
     /// Resolve a registered source by its id, falling back to public
     /// WordPress.tv (used when replaying a Continue Watching item, which stores
     /// only its source id).
     static func source(withID id: String) -> ContentSource {
         all.first { $0.id == id } ?? wordpressTV
+    }
+}
+
+extension ContentEvent {
+    /// Top-to-bottom gradient for the portrait card art.
+    var colors: [Color] {
+        let hash = slug.unicodeScalars.reduce(UInt32(0)) { partial, scalar in
+            partial &* 31 &+ UInt32(scalar.value)
+        }
+        let index = Int(hash % UInt32(Catalog.eventPalettes.count))
+        return Catalog.eventPalettes[index]
+    }
+
+    /// The event place/year, e.g. "Mannheim 2026" — the event name minus the
+    /// shared "WordCamp" prefix.
+    var displayPlace: String {
+        name.replacingOccurrences(of: "WordCamp ", with: "")
     }
 }
 

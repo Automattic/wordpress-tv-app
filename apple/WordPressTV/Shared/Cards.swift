@@ -2,7 +2,8 @@ import SwiftUI
 
 // The card vocabulary shared across Home, category grids, and search: a poster
 // primitive plus the three card shapes in the design — landscape video card,
-// portrait flagship card, and the wide Continue Watching card with a resume bar.
+// portrait WordCamp event card, and the wide Continue Watching card with a
+// resume bar.
 
 /// A rounded poster image with a branded placeholder while it loads or if the
 /// source has none. `aspect` sizes it; the caller fixes the width.
@@ -62,34 +63,28 @@ struct VideoCard: View {
     }
 }
 
-/// Portrait flagship-WordCamp card. A real cover image from the camp's latest
+/// Portrait WordCamp event card. A real cover image from the event's latest
 /// video sits behind a brand-tinted scrim, with the WordPress mark and event
 /// name over it — a populated poster rather than a flat colour. Falls back to
-/// the brand gradient until (or if) the cover resolves. Opens the camp's videos.
+/// the brand gradient until (or if) the cover resolves. Opens the event's videos.
 struct PortraitCampCard: View {
-    let camp: FlagshipCamp
-    var width: CGFloat = 300
-    /// Resolves the cover image (the camp's newest video poster). Lazy so only
+    let event: ContentEvent
+    var width: CGFloat = 270
+    /// Resolves the cover image (the event's newest video poster). Lazy so only
     /// on-screen cards fetch.
-    let resolveCover: (FlagshipCamp) async -> URL?
+    let resolveCover: (ContentEvent) async -> URL?
     let onSelect: () -> Void
 
     @State private var coverURL: URL?
 
-    /// The event's place, e.g. "Asia" — the flagship name minus the shared
-    /// "WordCamp" prefix, so it reads as poster art rather than a wrapped label.
-    private var place: String {
-        camp.title.replacingOccurrences(of: "WordCamp ", with: "")
-    }
-
     private var height: CGFloat { width * 1.5 }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 18) {
             Button(action: onSelect) {
                 ZStack(alignment: .bottomLeading) {
                     // Brand gradient — the base, and the fallback if no cover.
-                    LinearGradient(colors: camp.colors, startPoint: .top, endPoint: .bottom)
+                    LinearGradient(colors: event.colors, startPoint: .top, endPoint: .bottom)
 
                     // Real cover image, sized to the card and clipped so it can't
                     // grow the ZStack (which would push the title out of view).
@@ -110,42 +105,42 @@ struct PortraitCampCard: View {
                         colors: [
                             .black.opacity(0.4),
                             .black.opacity(0.1),
-                            camp.colors.last?.opacity(0.98) ?? .black.opacity(0.9),
+                            event.colors.last?.opacity(0.98) ?? .black.opacity(0.9),
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
 
                     WordPressMark()
-                        .frame(width: 40, height: 40)
+                        .frame(width: 36, height: 36)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .padding(24)
+                        .padding(22)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("WordCamp")
                             .font(.title3.weight(.semibold))
                             .foregroundStyle(.white.opacity(0.9))
-                        Text(place)
-                            .font(.system(size: 40, weight: .heavy))
+                        Text(event.displayPlace)
+                            .font(.system(size: 36, weight: .heavy))
                             .foregroundStyle(.white)
                             .minimumScaleFactor(0.6)
                             .lineLimit(2)
                     }
-                    .padding(24)
+                    .padding(22)
                 }
                 .frame(width: width, height: height)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .clipShape(RoundedRectangle(cornerRadius: 18))
             }
             .buttonStyle(.card)
 
-            Text(camp.title)
+            Text(event.name)
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(width: width)
-        .task { coverURL = await resolveCover(camp) }
+        .task { coverURL = await resolveCover(event) }
     }
 }
 
@@ -207,7 +202,7 @@ private struct ResumeBar: View {
     }
 }
 
-/// The official WordPress logo mark, used across the nav bar and flagship cards.
+/// The official WordPress logo mark, used across the nav bar and WordCamp cards.
 /// Rendered from the bundled vector asset as a template so it tints to its
 /// context and stays crisp at any size.
 struct WordPressMark: View {
