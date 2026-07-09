@@ -163,6 +163,7 @@ fun ContentRootScreen(
                             section = selected,
                             repository = repository,
                             store = store,
+                            contentLanguageSelection = contentLanguageSelection,
                             onPlay = ::play,
                             onOpenEvent = { selected = Section.WordCamp(it) },
                             resolveCover = ::eventCover,
@@ -242,6 +243,7 @@ private fun Body(
     section: Section,
     repository: ContentRepository,
     store: WatchProgressStore,
+    contentLanguageSelection: ContentLanguageSelection,
     onPlay: (Video, ContentSource) -> Unit,
     onOpenEvent: (ContentEvent) -> Unit,
     resolveCover: suspend (ContentEvent) -> String?,
@@ -266,6 +268,7 @@ private fun Body(
                 onPlay = onPlay,
                 onAuthRequired = onAuthRequired,
                 onChangeLanguage = onLanguageSettings,
+                isLanguageFiltered = contentLanguageSelection.ids.isNotEmpty(),
             )
         } else {
             VideoGrid(

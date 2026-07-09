@@ -179,9 +179,9 @@ struct WordCampsView: View {
     let onPlay: (Video, ContentSource) -> Void
     let onAuthRequired: () -> Void
     let onChangeLanguage: () -> Void
+    let isLanguageFiltered: Bool
 
     @State private var events: [ContentEvent] = []
-    @State private var hiddenEventIDs = Set<Int64>()
     @State private var nextEventPage = 1
     @State private var isLoadingEventPage = false
     @State private var canLoadMoreEvents = true
@@ -193,48 +193,47 @@ struct WordCampsView: View {
         source: ContentSource,
         onPlay: @escaping (Video, ContentSource) -> Void,
         onAuthRequired: @escaping () -> Void = {},
-        onChangeLanguage: @escaping () -> Void = {}
+        onChangeLanguage: @escaping () -> Void = {},
+        isLanguageFiltered: Bool = false
     ) {
         self.repository = repository
         self.source = source
         self.onPlay = onPlay
         self.onAuthRequired = onAuthRequired
         self.onChangeLanguage = onChangeLanguage
+        self.isLanguageFiltered = isLanguageFiltered
     }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 56) {
-                if !hiddenEventIDs.isEmpty {
-                    LanguageFilterNotice(onChangeLanguage: onChangeLanguage)
-                }
+        VStack(alignment: .leading, spacing: 0) {
+            if isLanguageFiltered {
+                LanguageFilterNotice(onChangeLanguage: onChangeLanguage)
+                    .padding(.top, 20)
+                    .padding(.bottom, 8)
+            }
 
-                ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
-                    QueryVideoRail(
-                        title: event.name,
-                        model: VideoFeedViewModel(repository: repository, source: source, query: .event(event, applyLanguageFilter: true)),
-                        source: source,
-                        onPlay: onPlay,
-                        onAuthRequired: onAuthRequired,
-                        hideWhenEmpty: true,
-                        onHiddenChange: { isHidden in
-                            if isHidden {
-                                hiddenEventIDs.insert(event.id)
-                            } else {
-                                hiddenEventIDs.remove(event.id)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 56) {
+                    ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
+                        QueryVideoRail(
+                            title: event.name,
+                            model: VideoFeedViewModel(repository: repository, source: source, query: .event(event, applyLanguageFilter: true)),
+                            source: source,
+                            onPlay: onPlay,
+                            onAuthRequired: onAuthRequired,
+                            hideWhenEmpty: true
+                        )
+                        .task {
+                            if index == events.count - 1 {
+                                await loadNextEventPageIfNeeded()
                             }
                         }
-                    )
-                    .task {
-                        if index == events.count - 1 {
-                            await loadNextEventPageIfNeeded()
-                        }
                     }
-                }
 
-                eventPaginationFooter
+                    eventPaginationFooter
+                }
+                .padding(.vertical, 40)
             }
-            .padding(.vertical, 40)
         }
         .task {
             guard !didStart else { return }
@@ -284,7 +283,6 @@ private struct QueryVideoRail: View {
     let onPlay: (Video, ContentSource) -> Void
     let onAuthRequired: () -> Void
     let hideWhenEmpty: Bool
-    let onHiddenChange: (Bool) -> Void
 
     init(
         title: String,
@@ -292,8 +290,7 @@ private struct QueryVideoRail: View {
         source: ContentSource,
         onPlay: @escaping (Video, ContentSource) -> Void,
         onAuthRequired: @escaping () -> Void,
-        hideWhenEmpty: Bool = false,
-        onHiddenChange: @escaping (Bool) -> Void = { _ in }
+        hideWhenEmpty: Bool = false
     ) {
         self.title = title
         _model = State(initialValue: model)
@@ -301,7 +298,6 @@ private struct QueryVideoRail: View {
         self.onPlay = onPlay
         self.onAuthRequired = onAuthRequired
         self.hideWhenEmpty = hideWhenEmpty
-        self.onHiddenChange = onHiddenChange
     }
 
     var body: some View {
@@ -315,9 +311,6 @@ private struct QueryVideoRail: View {
             }
         }
         .task { await model.load() }
-        .onChange(of: model.state) { _, state in
-            onHiddenChange(hideWhenEmpty && state == .empty)
-        }
     }
 
     @ViewBuilder

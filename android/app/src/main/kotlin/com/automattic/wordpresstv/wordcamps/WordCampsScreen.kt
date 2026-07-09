@@ -1,6 +1,7 @@
 package com.automattic.wordpresstv.wordcamps
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -53,10 +54,10 @@ fun WordCampsScreen(
     onPlay: (Video, ContentSource) -> Unit,
     onAuthRequired: () -> Unit,
     onChangeLanguage: () -> Unit,
+    isLanguageFiltered: Boolean,
     modifier: Modifier = Modifier,
 ) {
     var events by remember(repository, source.id) { mutableStateOf<List<ContentEvent>>(emptyList()) }
-    var hiddenEventIds by remember(repository, source.id) { mutableStateOf<Set<Long>>(emptySet()) }
     var nextEventPage by remember(repository, source.id) { mutableStateOf(1) }
     var isLoadingEventPage by remember(repository, source.id) { mutableStateOf(false) }
     var canLoadMoreEvents by remember(repository, source.id) { mutableStateOf(true) }
@@ -83,7 +84,6 @@ fun WordCampsScreen(
 
     LaunchedEffect(repository, source.id) {
         events = emptyList()
-        hiddenEventIds = emptySet()
         nextEventPage = 1
         isLoadingEventPage = false
         canLoadMoreEvents = true
@@ -93,49 +93,42 @@ fun WordCampsScreen(
 
     val scope = rememberCoroutineScope()
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(32.dp),
-    ) {
-        if (hiddenEventIds.isNotEmpty()) {
-            item {
-                LanguageFilterNotice(onChangeLanguage = onChangeLanguage)
-            }
+    Column(modifier = modifier.fillMaxSize()) {
+        if (isLanguageFiltered) {
+            LanguageFilterNotice(onChangeLanguage = onChangeLanguage)
         }
 
-        itemsIndexed(events, key = { _, event -> event.id }) { index, event ->
-            QueryVideoRail(
-                title = event.name,
-                repository = repository,
-                source = source,
-                query = VideoQuery.Event(event, applyLanguageFilter = true),
-                onPlay = onPlay,
-                onAuthRequired = onAuthRequired,
-                hideWhenEmpty = true,
-                onHiddenChange = { isHidden ->
-                    hiddenEventIds = if (isHidden) {
-                        hiddenEventIds + event.id
-                    } else {
-                        hiddenEventIds - event.id
-                    }
-                },
-            )
-            if (index == events.lastIndex) {
-                LaunchedEffect(events.size, nextEventPage) { loadNextEventPage() }
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(32.dp),
+        ) {
+            itemsIndexed(events, key = { _, event -> event.id }) { index, event ->
+                QueryVideoRail(
+                    title = event.name,
+                    repository = repository,
+                    source = source,
+                    query = VideoQuery.Event(event, applyLanguageFilter = true),
+                    onPlay = onPlay,
+                    onAuthRequired = onAuthRequired,
+                    hideWhenEmpty = true,
+                )
+                if (index == events.lastIndex) {
+                    LaunchedEffect(events.size, nextEventPage) { loadNextEventPage() }
+                }
             }
-        }
 
-        if (isLoadingEventPage || eventPageFailed) {
-            item {
-                when {
-                    isLoadingEventPage -> RailPlaceholder { CircularProgressIndicator(color = Color.White) }
-                    eventPageFailed -> RailPlaceholder {
-                        MessageWithAction(
-                            message = stringResource(R.string.wordcamps_load_error),
-                            action = stringResource(R.string.retry),
-                            onAction = { scope.launch { loadNextEventPage() } },
-                        )
+            if (isLoadingEventPage || eventPageFailed) {
+                item {
+                    when {
+                        isLoadingEventPage -> RailPlaceholder { CircularProgressIndicator(color = Color.White) }
+                        eventPageFailed -> RailPlaceholder {
+                            MessageWithAction(
+                                message = stringResource(R.string.wordcamps_load_error),
+                                action = stringResource(R.string.retry),
+                                onAction = { scope.launch { loadNextEventPage() } },
+                            )
+                        }
                     }
                 }
             }
@@ -152,14 +145,10 @@ private fun QueryVideoRail(
     onPlay: (Video, ContentSource) -> Unit,
     onAuthRequired: () -> Unit,
     hideWhenEmpty: Boolean = false,
-    onHiddenChange: (Boolean) -> Unit = {},
 ) {
     val model = remember(repository, source.id, query) { VideoFeedViewModel(repository, source, query) }
     LaunchedEffect(repository, source.id, query) { model.load() }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(hideWhenEmpty, model.state) {
-        onHiddenChange(hideWhenEmpty && model.state == VideoFeedViewModel.State.Empty)
-    }
     if (hideWhenEmpty && model.state == VideoFeedViewModel.State.Empty) return
 
     RailSection(title) {
