@@ -158,7 +158,8 @@ struct ContentRootView: View {
                     repository: repository,
                     source: Sources.wordpressTV,
                     onPlay: play,
-                    onAuthRequired: routeToPairing
+                    onAuthRequired: routeToPairing,
+                    onChangeLanguage: { showSettings = true }
                 )
             } else {
                 VideoGrid(

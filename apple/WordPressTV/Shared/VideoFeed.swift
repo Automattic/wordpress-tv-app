@@ -178,8 +178,10 @@ struct WordCampsView: View {
     let source: ContentSource
     let onPlay: (Video, ContentSource) -> Void
     let onAuthRequired: () -> Void
+    let onChangeLanguage: () -> Void
 
     @State private var events: [ContentEvent] = []
+    @State private var hiddenEventIDs = Set<Int64>()
     @State private var nextEventPage = 1
     @State private var isLoadingEventPage = false
     @State private var canLoadMoreEvents = true
@@ -190,17 +192,23 @@ struct WordCampsView: View {
         repository: ContentRepository,
         source: ContentSource,
         onPlay: @escaping (Video, ContentSource) -> Void,
-        onAuthRequired: @escaping () -> Void = {}
+        onAuthRequired: @escaping () -> Void = {},
+        onChangeLanguage: @escaping () -> Void = {}
     ) {
         self.repository = repository
         self.source = source
         self.onPlay = onPlay
         self.onAuthRequired = onAuthRequired
+        self.onChangeLanguage = onChangeLanguage
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 56) {
+                if !hiddenEventIDs.isEmpty {
+                    LanguageFilterNotice(onChangeLanguage: onChangeLanguage)
+                }
+
                 ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
                     QueryVideoRail(
                         title: event.name,
@@ -208,7 +216,14 @@ struct WordCampsView: View {
                         source: source,
                         onPlay: onPlay,
                         onAuthRequired: onAuthRequired,
-                        hideWhenEmpty: true
+                        hideWhenEmpty: true,
+                        onHiddenChange: { isHidden in
+                            if isHidden {
+                                hiddenEventIDs.insert(event.id)
+                            } else {
+                                hiddenEventIDs.remove(event.id)
+                            }
+                        }
                     )
                     .task {
                         if index == events.count - 1 {
@@ -269,6 +284,7 @@ private struct QueryVideoRail: View {
     let onPlay: (Video, ContentSource) -> Void
     let onAuthRequired: () -> Void
     let hideWhenEmpty: Bool
+    let onHiddenChange: (Bool) -> Void
 
     init(
         title: String,
@@ -276,7 +292,8 @@ private struct QueryVideoRail: View {
         source: ContentSource,
         onPlay: @escaping (Video, ContentSource) -> Void,
         onAuthRequired: @escaping () -> Void,
-        hideWhenEmpty: Bool = false
+        hideWhenEmpty: Bool = false,
+        onHiddenChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self.title = title
         _model = State(initialValue: model)
@@ -284,16 +301,22 @@ private struct QueryVideoRail: View {
         self.onPlay = onPlay
         self.onAuthRequired = onAuthRequired
         self.hideWhenEmpty = hideWhenEmpty
+        self.onHiddenChange = onHiddenChange
     }
 
     var body: some View {
-        if hideWhenEmpty, case .empty = model.state {
-            EmptyView()
-        } else {
-            RailSection(title: title) {
-                content
+        Group {
+            if hideWhenEmpty, case .empty = model.state {
+                EmptyView()
+            } else {
+                RailSection(title: title) {
+                    content
+                }
             }
-            .task { await model.load() }
+        }
+        .task { await model.load() }
+        .onChange(of: model.state) { _, state in
+            onHiddenChange(hideWhenEmpty && state == .empty)
         }
     }
 
@@ -320,6 +343,24 @@ private struct QueryVideoRail: View {
                 onPlay: onPlay
             )
         }
+    }
+}
+
+private struct LanguageFilterNotice: View {
+    let onChangeLanguage: () -> Void
+
+    var body: some View {
+        HStack(spacing: 24) {
+            Text("Some WordCamps are hidden by your language setting.")
+                .font(.callout.weight(.medium))
+                .foregroundStyle(.white.opacity(0.78))
+
+            Button("Change Language", action: onChangeLanguage)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.08)))
+        .padding(.horizontal, 80)
     }
 }
 

@@ -2,9 +2,14 @@ package com.automattic.wordpresstv.wordcamps
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -13,9 +18,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.automattic.wordpresstv.R
@@ -31,6 +39,7 @@ import com.automattic.wordpresstv.feed.VideoQuery
 import com.automattic.wordpresstv.feed.VideoRail
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import androidx.tv.material3.Button
 import androidx.tv.material3.Text
 
 /**
@@ -43,9 +52,11 @@ fun WordCampsScreen(
     source: ContentSource,
     onPlay: (Video, ContentSource) -> Unit,
     onAuthRequired: () -> Unit,
+    onChangeLanguage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var events by remember(repository, source.id) { mutableStateOf<List<ContentEvent>>(emptyList()) }
+    var hiddenEventIds by remember(repository, source.id) { mutableStateOf<Set<Long>>(emptySet()) }
     var nextEventPage by remember(repository, source.id) { mutableStateOf(1) }
     var isLoadingEventPage by remember(repository, source.id) { mutableStateOf(false) }
     var canLoadMoreEvents by remember(repository, source.id) { mutableStateOf(true) }
@@ -72,6 +83,7 @@ fun WordCampsScreen(
 
     LaunchedEffect(repository, source.id) {
         events = emptyList()
+        hiddenEventIds = emptySet()
         nextEventPage = 1
         isLoadingEventPage = false
         canLoadMoreEvents = true
@@ -86,6 +98,12 @@ fun WordCampsScreen(
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(32.dp),
     ) {
+        if (hiddenEventIds.isNotEmpty()) {
+            item {
+                LanguageFilterNotice(onChangeLanguage = onChangeLanguage)
+            }
+        }
+
         itemsIndexed(events, key = { _, event -> event.id }) { index, event ->
             QueryVideoRail(
                 title = event.name,
@@ -95,6 +113,13 @@ fun WordCampsScreen(
                 onPlay = onPlay,
                 onAuthRequired = onAuthRequired,
                 hideWhenEmpty = true,
+                onHiddenChange = { isHidden ->
+                    hiddenEventIds = if (isHidden) {
+                        hiddenEventIds + event.id
+                    } else {
+                        hiddenEventIds - event.id
+                    }
+                },
             )
             if (index == events.lastIndex) {
                 LaunchedEffect(events.size, nextEventPage) { loadNextEventPage() }
@@ -127,10 +152,14 @@ private fun QueryVideoRail(
     onPlay: (Video, ContentSource) -> Unit,
     onAuthRequired: () -> Unit,
     hideWhenEmpty: Boolean = false,
+    onHiddenChange: (Boolean) -> Unit = {},
 ) {
     val model = remember(repository, source.id, query) { VideoFeedViewModel(repository, source, query) }
     LaunchedEffect(repository, source.id, query) { model.load() }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(hideWhenEmpty, model.state) {
+        onHiddenChange(hideWhenEmpty && model.state == VideoFeedViewModel.State.Empty)
+    }
     if (hideWhenEmpty && model.state == VideoFeedViewModel.State.Empty) return
 
     RailSection(title) {
@@ -163,6 +192,32 @@ private fun QueryVideoRail(
                 resolvePoster = { model.posterUrl(it) },
                 onPlay = onPlay,
             )
+        }
+    }
+}
+
+@Composable
+private fun LanguageFilterNotice(onChangeLanguage: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = 56.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.08f))
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(R.string.wordcamps_hidden_by_language),
+            color = Color.White.copy(alpha = 0.78f),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f).padding(end = 20.dp),
+            maxLines = 2,
+        )
+        Button(onClick = onChangeLanguage) {
+            Text(stringResource(R.string.change_language))
         }
     }
 }

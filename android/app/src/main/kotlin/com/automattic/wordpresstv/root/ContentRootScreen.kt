@@ -167,6 +167,7 @@ fun ContentRootScreen(
                             onOpenEvent = { selected = Section.WordCamp(it) },
                             resolveCover = ::eventCover,
                             onAuthRequired = ::routeToPairing,
+                            onLanguageSettings = { showSettings = true },
                         )
                     }
                 }
@@ -245,6 +246,7 @@ private fun Body(
     onOpenEvent: (ContentEvent) -> Unit,
     resolveCover: suspend (ContentEvent) -> String?,
     onAuthRequired: () -> Unit,
+    onLanguageSettings: () -> Unit,
 ) {
     when (section) {
         Section.Home -> HomeScreen(
@@ -263,6 +265,7 @@ private fun Body(
                 source = Sources.wordpressTV,
                 onPlay = onPlay,
                 onAuthRequired = onAuthRequired,
+                onChangeLanguage = onLanguageSettings,
             )
         } else {
             VideoGrid(
