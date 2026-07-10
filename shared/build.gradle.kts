@@ -2,12 +2,15 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
-    androidTarget {
+    android {
+        namespace = "com.automattic.wordpresstv.core"
+        compileSdk = 37
+        minSdk = 23
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
@@ -52,20 +55,6 @@ kotlin {
         tvosX64Test.get().dependsOn(tvosTest)
         tvosArm64Test.get().dependsOn(tvosTest)
         tvosSimulatorArm64Test.get().dependsOn(tvosTest)
-    }
-}
-
-android {
-    namespace = "com.automattic.wordpresstv.core"
-    compileSdk = 35
-
-    defaultConfig {
-        minSdk = 23
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
@@ -115,16 +104,22 @@ tasks.register("syncAppleFrameworkForXcode") {
                     .asFile
                     .absolutePath
             }
-            exec {
-                commandLine(
-                    listOf(
-                        "lipo",
-                        "-create",
-                        *binaries.toTypedArray(),
-                        "-output",
-                        outputDir.resolve("WordPressTVSharedCore").absolutePath,
-                    ),
-                )
+            // Gradle 9 removed Project.exec; shell out to `lipo` directly to
+            // fatten the per-arch simulator frameworks into one binary.
+            val lipoCommand = listOf(
+                "lipo",
+                "-create",
+                *binaries.toTypedArray(),
+                "-output",
+                outputDir.resolve("WordPressTVSharedCore").absolutePath,
+            )
+            val exitCode = ProcessBuilder(lipoCommand)
+                .redirectErrorStream(true)
+                .inheritIO()
+                .start()
+                .waitFor()
+            if (exitCode != 0) {
+                throw GradleException("lipo failed with exit code $exitCode")
             }
         }
     }
