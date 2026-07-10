@@ -10,3 +10,5 @@ spec/
 # Shared Kotlin Multiplatform build output
 shared/build/
 shared/.gradle/
+
+.idea/
