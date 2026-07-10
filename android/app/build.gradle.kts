@@ -1,44 +1,31 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
 
-// Marketing version (`versionName`) comes from the repo-root `VERSION` file — a
-// single line like `1.2.3`. Bump it by hand when cutting a release. Mirrors the iOS
-// marketing version (apple/fastlane/Fastfile) so both artifacts share one source of
-// truth: the `VERSION` file. The build number (`versionCode`) stays the CI build
-// number, injected via `-PversionCode`.
 fun marketingVersion(): String {
     val versionFile = rootDir.parentFile.resolve("VERSION")
     return versionFile.takeIf { it.exists() }
-        ?.readText()?.trim()?.removePrefix("v")?.takeIf { it.isNotBlank() }
+        ?.readText()?.trim()?.takeIf { it.isNotBlank() }
         ?: "0.0.1"
 }
 
 android {
     namespace = "com.automattic.wordpresstv"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "tv.wordpress"
         minSdk = 23
-        targetSdk = 35
-        // Build number injected by the release build (`-PversionCode`), like the
-        // iOS build number; falls back to 1 for local builds.
         versionCode = (project.findProperty("versionCode") as String?)?.toIntOrNull() ?: 1
         versionName = marketingVersion()
 
-        // Broker location — the /pairing routes on wordpress.tv (wpcom), mirroring
-        // the iOS app's `BrokerBaseURL` Info.plist default. Configured once here;
-        // the pairing flow reads it via BuildConfig.
         buildConfigField("String", "BROKER_BASE_URL", "\"https://wordpress.tv/pairing\"")
     }
 
-    // Sign the release when the upload key is present: the keystore at
-    // app/wordpress-tv-upload.jks plus UPLOAD_KEYSTORE_PASSWORD in the env
-    // (alias `upload`). Absent either, the release stays unsigned.
     val uploadKeystore = file("wordpress-tv-upload.jks")
     val uploadKeystorePassword = System.getenv("UPLOAD_KEYSTORE_PASSWORD")
     val canSignRelease = uploadKeystore.exists() && uploadKeystorePassword != null
@@ -56,7 +43,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -76,8 +64,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
