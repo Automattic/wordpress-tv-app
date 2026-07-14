@@ -15,6 +15,8 @@ struct HomeView: View {
     /// Resolve an event card's cover image (its newest video poster).
     let resolveCover: (ContentEvent) async -> URL?
     let onAuthRequired: () -> Void
+    /// Open the "Code for the People" documentary promo (the Home hero).
+    let onOpenPromo: () -> Void
 
     @State private var model: VideoFeedViewModel
     @State private var wordCampState: WordCampState = .loading
@@ -33,7 +35,8 @@ struct HomeView: View {
         onPlay: @escaping (Video, ContentSource) -> Void,
         onOpenEvent: @escaping (ContentEvent) -> Void,
         resolveCover: @escaping (ContentEvent) async -> URL?,
-        onAuthRequired: @escaping () -> Void
+        onAuthRequired: @escaping () -> Void,
+        onOpenPromo: @escaping () -> Void
     ) {
         self.repository = repository
         self.source = source
@@ -42,12 +45,17 @@ struct HomeView: View {
         self.onOpenEvent = onOpenEvent
         self.resolveCover = resolveCover
         self.onAuthRequired = onAuthRequired
+        self.onOpenPromo = onOpenPromo
         _model = State(initialValue: VideoFeedViewModel(repository: repository, source: source, query: .latest))
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 56) {
+                // The featured hero, above the rails, opening the documentary promo.
+                FeaturedPromoBanner(onOpen: onOpenPromo)
+                    .padding(.horizontal, 80)
+
                 if !store.items.isEmpty {
                     RailSection(title: "Continue Watching") {
                         continueWatchingRail

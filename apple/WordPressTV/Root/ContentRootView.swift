@@ -75,6 +75,8 @@ struct ContentRootView: View {
     @State private var showPairing = false
     @State private var showAccountSheet = false
     @State private var showSettings = false
+    /// The "Code for the People" documentary promo, opened from the Home hero.
+    @State private var showPromo = false
     @AppStorage(ContentLanguageSelection.storageKey)
     private var contentLanguageSelectionRaw = ContentLanguageSelection.saved.rawValue
     /// Which nav control the tvOS focus engine currently holds, so the unified
@@ -117,6 +119,9 @@ struct ContentRootView: View {
                 onDismiss: { showSettings = false }
             )
         }
+        .fullScreenCover(isPresented: $showPromo) {
+            PromoView(onClose: { showPromo = false })
+        }
         .fullScreenCover(item: $playback) { request in
             PlayerView(request: request, store: store)
         }
@@ -149,7 +154,8 @@ struct ContentRootView: View {
                 onPlay: play,
                 onOpenEvent: { selected = .wordCamp($0) },
                 resolveCover: eventCover,
-                onAuthRequired: routeToPairing
+                onAuthRequired: routeToPairing,
+                onOpenPromo: { showPromo = true }
             )
 
         case .category(let category):
