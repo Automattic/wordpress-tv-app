@@ -12,6 +12,21 @@
         android:name="android.software.leanback"
         android:required="true" />
 
+    <!-- So the Code for the People promo can detect and hand off to a YouTube app
+         (package visibility is restricted on Android 11+). -->
+    <queries>
+        <package android:name="com.google.android.youtube.tv" />
+        <package android:name="com.google.android.youtube" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:host="www.youtube.com" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:host="youtu.be" />
+        </intent>
+    </queries>
+
     <!-- No cloud backup of the token-bearing stores; the extraction rules also
          exclude them from Android 12+ device-to-device transfer. -->
     <application

@@ -18,6 +18,16 @@
     <string name="wordcamps_load_error">Couldn\'t load WordCamps. Please try again.</string>
     <string name="no_wordcamps">No WordCamps yet.</string>
 
+    <!-- Code for the People documentary promo -->
+    <string name="promo_badge">FEATURED</string>
+    <string name="promo_home_synopsis">Who owns the internet — and what it takes to keep it free.</string>
+    <string name="promo_home_cta">Watch the documentary</string>
+    <string name="promo_open_youtube">▶  Watch on YouTube</string>
+    <string name="promo_scan_hint">Scan with your phone to watch</string>
+    <string name="promo_watch_phone">Watch on your phone</string>
+    <string name="promo_back">Back</string>
+    <string name="promo_youtube_unavailable">You don\'t have the YouTube app installed.</string>
+
     <!-- Search -->
     <string name="search_hint">Search talks, speakers, and topics</string>
     <string name="search_prompt">Search WordPress.tv for talks, speakers, and topics.</string>

@@ -4,10 +4,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,6 +20,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -58,6 +61,8 @@ fun HomeScreen(
     onOpenEvent: (ContentEvent) -> Unit,
     resolveCover: suspend (ContentEvent) -> String?,
     onAuthRequired: () -> Unit,
+    onOpenPromo: () -> Unit,
+    promoOpen: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val model = remember(repository, source.id) { VideoFeedViewModel(repository, source, VideoQuery.Latest) }
@@ -69,18 +74,25 @@ fun HomeScreen(
         wordCampState = loadWordCampState(repository, source)
     }
 
-    // Land initial focus on the first card of the topmost rail so the D-pad works
-    // immediately; pressing Up from there reaches the nav bar.
-    val firstCardFocus = remember { FocusRequester() }
+    // Land initial focus on the featured hero (the topmost element); pressing Up
+    // from there reaches the nav bar.
+    val bannerFocus = remember { FocusRequester() }
+    val listState = rememberLazyListState()
     val continueWatching = store.items
-    val initialFocusKey = continueWatching.firstOrNull()?.videoGuid
-        ?: (wordCampState as? WordCampState.Loaded)?.events?.firstOrNull()?.id
 
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(top = 12.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(32.dp),
     ) {
+        item {
+            FeaturedPromoBanner(
+                onClick = onOpenPromo,
+                modifier = Modifier.padding(horizontal = 56.dp).focusRequester(bannerFocus),
+            )
+        }
+
         if (continueWatching.isNotEmpty()) {
             item {
                 RailSection(stringResource(R.string.continue_watching)) {
@@ -93,7 +105,7 @@ fun HomeScreen(
                         },
                         onPosterResolved = store::setPosterUrl,
                         onPlay = onPlay,
-                        firstCardFocus = firstCardFocus,
+                        firstCardFocus = null,
                     )
                 }
             }
@@ -111,7 +123,7 @@ fun HomeScreen(
                             wordCampState = loadWordCampState(repository, source)
                         }
                     },
-                    firstCardFocus = if (continueWatching.isEmpty()) firstCardFocus else null,
+                    firstCardFocus = null,
                 )
             }
         }
@@ -123,9 +135,18 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(initialFocusKey) {
-        repeat(10) {
-            if (runCatching { firstCardFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+    // Land initial focus on the hero, and restore it there when the promo overlay
+    // closes (the overlay took focus, so returning would otherwise leave nothing
+    // focused). Skip while the promo is open so we don't steal its focus.
+    LaunchedEffect(promoOpen) {
+        if (promoOpen) return@LaunchedEffect
+        repeat(20) {
+            if (runCatching { bannerFocus.requestFocus() }.isSuccess) {
+                // Requesting focus on the first item nudges the list to scroll it
+                // partway under the nav bar; pin it back to the top.
+                runCatching { listState.scrollToItem(0) }
+                return@LaunchedEffect
+            }
             delay(30)
         }
     }

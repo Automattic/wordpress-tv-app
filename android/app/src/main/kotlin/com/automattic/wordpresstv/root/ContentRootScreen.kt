@@ -54,6 +54,7 @@ import com.automattic.wordpresstv.feed.VideoQuery
 import com.automattic.wordpresstv.home.HomeScreen
 import com.automattic.wordpresstv.player.PlaybackRequest
 import com.automattic.wordpresstv.player.PlayerScreen
+import com.automattic.wordpresstv.promo.PromoScreen
 import com.automattic.wordpresstv.search.SearchScreen
 import com.automattic.wordpresstv.settings.ContentLanguageSelection
 import com.automattic.wordpresstv.settings.SettingsScreen
@@ -90,6 +91,8 @@ fun ContentRootScreen(
     var showPairing by remember { mutableStateOf(false) }
     var showAccountDialog by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    // The Code for the People documentary promo, opened from the Home hero.
+    var showPromo by remember { mutableStateOf(false) }
     // Hoisted here (not inside a screen) so the player overlays the whole screen —
     // nav bar included — like the tvOS `fullScreenCover`, and every screen plays
     // through one path.
@@ -137,7 +140,7 @@ fun ContentRootScreen(
 
     // Back returns to Home from any sub-section rather than exiting the app
     // (the player and dialogs handle their own Back).
-    BackHandler(enabled = selected != Section.Home && playing == null && !showPairing && !showAccountDialog && !showSettings) {
+    BackHandler(enabled = selected != Section.Home && playing == null && !showPairing && !showAccountDialog && !showSettings && !showPromo) {
         selected = Section.Home
     }
 
@@ -167,6 +170,8 @@ fun ContentRootScreen(
                             onOpenEvent = { selected = Section.WordCamp(it) },
                             resolveCover = ::eventCover,
                             onAuthRequired = ::routeToPairing,
+                            onOpenPromo = { showPromo = true },
+                            promoOpen = showPromo,
                         )
                     }
                 }
@@ -176,6 +181,11 @@ fun ContentRootScreen(
         // Full-screen player overlay (covers the nav bar), dismissed with Back.
         playing?.let { request ->
             PlayerScreen(request = request, store = store, onClose = { playing = null })
+        }
+
+        // Full-screen documentary promo overlay, dismissed with Back or Close.
+        if (showPromo) {
+            PromoScreen(onClose = { showPromo = false })
         }
 
         if (showPairing) {
@@ -245,6 +255,8 @@ private fun Body(
     onOpenEvent: (ContentEvent) -> Unit,
     resolveCover: suspend (ContentEvent) -> String?,
     onAuthRequired: () -> Unit,
+    onOpenPromo: () -> Unit,
+    promoOpen: Boolean,
 ) {
     when (section) {
         Section.Home -> HomeScreen(
@@ -255,6 +267,8 @@ private fun Body(
             onOpenEvent = onOpenEvent,
             resolveCover = resolveCover,
             onAuthRequired = onAuthRequired,
+            onOpenPromo = onOpenPromo,
+            promoOpen = promoOpen,
         )
 
         is Section.Category -> if (section.category.slug == Catalog.wordCampsSlug) {
