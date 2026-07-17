@@ -2,7 +2,4 @@
 
 source 'https://rubygems.org'
 
-# Fastlane drives the release lanes for the Android/Google TV app. The Play
-# upload uses fastlane's built-in `supply` action (`upload_to_play_store`), so
-# no extra plugin is required. Mirrors apple/Gemfile.
 gem 'fastlane', '~> 2.228'
