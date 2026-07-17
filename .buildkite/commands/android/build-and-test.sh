@@ -9,4 +9,4 @@
 echo "--- :robot_face: Building & testing the Google TV (Android) app"
 
 cd android
-./gradlew --no-daemon --stacktrace :shared:testDebugUnitTest :app:assembleDebug
+./gradlew --no-daemon --stacktrace :shared:testAndroidHostTest :app:assembleDebug

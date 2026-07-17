@@ -14,9 +14,23 @@ local.properties
 *.aab
 captures/
 
-# Signing — NEVER commit
+# Signing / credentials — NEVER commit
 *.keystore
 *.jks
+play-service-account.json
+
+# Fastlane — generated reports and outputs (lanes themselves are committed)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/
+fastlane/README.md
+
+# Fastlane — local secrets. NEVER commit.
+fastlane/.env
+fastlane/.env.local
+
+# Bundler — gems install into vendor/bundle (see .bundle/config; config is committed).
+vendor/
 
 # Android Studio / IntelliJ
 .idea/

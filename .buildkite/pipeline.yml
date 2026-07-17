@@ -27,16 +27,23 @@ steps:
         # protection may reference it.
         notify:
           - github_commit_status:
-              context: "Build and Test"
+              context: "tvOS Build and Test"
 
-      # Ship a TestFlight build on every push to trunk, but only once tests pass.
+      - block: "🚀 Release to TestFlight?"
+        key: "apple-release-gate"
+        depends_on: "apple-build-and-test"
+        branches: "trunk"
+
       - label: "🚀 TestFlight"
         command: ".buildkite/commands/apple/build-and-upload-to-testflight.sh"
         agents:
           queue: mac
         plugins: [$CI_TOOLKIT]
-        depends_on: "apple-build-and-test"
+        depends_on: "apple-release-gate"
         branches: "trunk"
+        notify:
+          - github_commit_status:
+              context: "TestFlight"
 
   # ---------------------------------------------------------------------------
   # 🤖 Android (Google TV) — android/
@@ -53,16 +60,25 @@ steps:
         command: ".buildkite/commands/android/build-and-test.sh"
         agents:
           queue: android
+        notify:
+          - github_commit_status:
+              context: "Android Build and Test"
 
-      # Build a signed release AAB + APK on trunk and keep them as Buildkite
-      # artifacts (grab them from the build's Artifacts tab — the .aab for Play,
-      # the .apk for sideloading). Needs $CI_TOOLKIT to provision the upload-key
-      # secrets (UPLOAD_KEYSTORE_*).
-      - label: "📦 Release AAB + APK"
+      # Artifacts land in the build's Artifacts tab: .aab for Play, .apk for
+      # sideloading. $CI_TOOLKIT provisions the upload-key + Play secrets.
+      - block: "📦 Release to Play internal?"
+        key: "android-release-gate"
+        depends_on: "android-build-and-test"
+        branches: "trunk"
+
+      - label: "📦 Release AAB + APK → Play internal"
         key: "android-release"
         command: ".buildkite/commands/android/build-and-upload-release.sh"
         agents:
           queue: android
         plugins: [$CI_TOOLKIT]
-        depends_on: "android-build-and-test"
+        depends_on: "android-release-gate"
         branches: "trunk"
+        notify:
+          - github_commit_status:
+              context: "Play Internal Release"
