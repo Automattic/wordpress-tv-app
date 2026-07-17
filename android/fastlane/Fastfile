@@ -1,0 +1,40 @@
+# frozen_string_literal: true
+
+default_platform(:android)
+
+# The Google Play package name — the Gradle `applicationId`, not the iOS bundle id.
+APP_PACKAGE_NAME = 'tv.wordpress'
+
+# android/ (this file lives in android/fastlane/).
+PROJECT_ROOT_FOLDER = File.dirname(File.expand_path(__dir__))
+
+# Google Play service-account JSON. On CI it is fetched from S3 into android/ by
+# .buildkite/commands/android/build-and-upload-release.sh; locally, drop the key
+# here (it is gitignored) to run the lane by hand.
+PLAY_SERVICE_ACCOUNT_JSON = File.join(PROJECT_ROOT_FOLDER, 'play-service-account.json')
+
+# The signed release bundle produced by `./gradlew :app:bundleRelease`.
+AAB_PATH = File.join(PROJECT_ROOT_FOLDER, 'app', 'build', 'outputs', 'bundle', 'release', 'app-release.aab')
+
+platform :android do
+  desc 'Upload the already-built signed release AAB to the Google Play internal testing track.'
+  desc 'The AAB is built beforehand by the Buildkite release script; this lane only publishes it.'
+  lane :upload_to_play_internal do
+    upload_to_play_store(
+      package_name: APP_PACKAGE_NAME,
+      aab: AAB_PATH,
+      track: 'internal',
+      # Fully available to internal testers immediately — the Play analogue of a
+      # TestFlight internal build. No staged rollout for the internal track.
+      release_status: 'completed',
+      json_key: PLAY_SERVICE_ACCOUNT_JSON,
+      # We publish an .aab and manage store listing/screenshots by hand, so skip
+      # everything supply would otherwise try to sync from fastlane/metadata.
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+end

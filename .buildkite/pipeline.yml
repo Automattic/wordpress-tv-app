@@ -54,11 +54,13 @@ steps:
         agents:
           queue: android
 
-      # Build a signed release AAB + APK on trunk and keep them as Buildkite
+      # Build a signed release AAB + APK on trunk, keep them as Buildkite
       # artifacts (grab them from the build's Artifacts tab — the .aab for Play,
-      # the .apk for sideloading). Needs $CI_TOOLKIT to provision the upload-key
-      # secrets (UPLOAD_KEYSTORE_*).
-      - label: "📦 Release AAB + APK"
+      # the .apk for sideloading), and publish the AAB to the Google Play internal
+      # testing track (the Android analogue of the tvOS TestFlight step). Needs
+      # $CI_TOOLKIT to provision the upload-key secrets (UPLOAD_KEYSTORE_*) and the
+      # Play service-account JSON, and to run install_gems for Fastlane.
+      - label: "📦 Release AAB + APK → Play internal"
         key: "android-release"
         command: ".buildkite/commands/android/build-and-upload-release.sh"
         agents:
