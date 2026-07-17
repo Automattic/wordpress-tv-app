@@ -34,16 +34,13 @@ steps:
         depends_on: "apple-build-and-test"
         branches: "trunk"
 
-      - label: "🚀 TestFlight"
+      - label: "🚀 TestFlight Internal Release"
         command: ".buildkite/commands/apple/build-and-upload-to-testflight.sh"
         agents:
           queue: mac
         plugins: [$CI_TOOLKIT]
         depends_on: "apple-release-gate"
         branches: "trunk"
-        notify:
-          - github_commit_status:
-              context: "TestFlight"
 
   # ---------------------------------------------------------------------------
   # 🤖 Android (Google TV) — android/
@@ -62,16 +59,16 @@ steps:
           queue: android
         notify:
           - github_commit_status:
-              context: "Android Build and Test"
+              context: "Google TV Build and Test"
 
       # Artifacts land in the build's Artifacts tab: .aab for Play, .apk for
       # sideloading. $CI_TOOLKIT provisions the upload-key + Play secrets.
-      - block: "📦 Release to Play internal?"
+      - block: "📦 Release to Google Play internal?"
         key: "android-release-gate"
         depends_on: "android-build-and-test"
         branches: "trunk"
 
-      - label: "📦 Release AAB + APK → Play internal"
+      - label: "📦 Google Play Internal Release"
         key: "android-release"
         command: ".buildkite/commands/android/build-and-upload-release.sh"
         agents:
@@ -79,6 +76,3 @@ steps:
         plugins: [$CI_TOOLKIT]
         depends_on: "android-release-gate"
         branches: "trunk"
-        notify:
-          - github_commit_status:
-              context: "Play Internal Release"
