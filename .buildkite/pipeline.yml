@@ -27,7 +27,7 @@ steps:
         # protection may reference it.
         notify:
           - github_commit_status:
-              context: "Build and Test"
+              context: "📺 tvOS Build and Test"
 
       - block: "🚀 Release to TestFlight?"
         key: "apple-release-gate"
@@ -43,7 +43,7 @@ steps:
         branches: "trunk"
         notify:
           - github_commit_status:
-              context: "TestFlight"
+              context: "🚀 TestFlight"
 
   # ---------------------------------------------------------------------------
   # 🤖 Android (Google TV) — android/
@@ -62,7 +62,7 @@ steps:
           queue: android
         notify:
           - github_commit_status:
-              context: "Android Build and Test"
+              context: "🤖 Android Build and Test"
 
       # Artifacts land in the build's Artifacts tab: .aab for Play, .apk for
       # sideloading. $CI_TOOLKIT provisions the upload-key + Play secrets.
@@ -81,4 +81,4 @@ steps:
         branches: "trunk"
         notify:
           - github_commit_status:
-              context: "Play Internal Release"
+              context: "📦 Play Internal Release"
