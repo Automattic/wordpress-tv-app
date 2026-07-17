@@ -41,6 +41,9 @@ steps:
         plugins: [$CI_TOOLKIT]
         depends_on: "apple-release-gate"
         branches: "trunk"
+        notify:
+          - github_commit_status:
+              context: "TestFlight"
 
   # ---------------------------------------------------------------------------
   # 🤖 Android (Google TV) — android/
@@ -57,6 +60,9 @@ steps:
         command: ".buildkite/commands/android/build-and-test.sh"
         agents:
           queue: android
+        notify:
+          - github_commit_status:
+              context: "Android Build and Test"
 
       # Artifacts land in the build's Artifacts tab: .aab for Play, .apk for
       # sideloading. $CI_TOOLKIT provisions the upload-key + Play secrets.
@@ -73,3 +79,6 @@ steps:
         plugins: [$CI_TOOLKIT]
         depends_on: "android-release-gate"
         branches: "trunk"
+        notify:
+          - github_commit_status:
+              context: "Play Internal Release"

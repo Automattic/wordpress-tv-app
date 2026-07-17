@@ -11,6 +11,7 @@ kotlin {
         namespace = "com.automattic.wordpresstv.core"
         compileSdk = 37
         minSdk = 23
+        withHostTest {}
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
