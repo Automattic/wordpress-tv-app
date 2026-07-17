@@ -29,13 +29,21 @@ steps:
           - github_commit_status:
               context: "Build and Test"
 
-      # Ship a TestFlight build on every push to trunk, but only once tests pass.
+      # Gate the TestFlight release behind a manual approval on trunk. The build
+      # stays in a "blocked" state until someone clicks "Unblock" in the
+      # Buildkite UI, so releases are opt-in rather than automatic.
+      - block: "🚀 Release to TestFlight?"
+        key: "apple-release-gate"
+        depends_on: "apple-build-and-test"
+        branches: "trunk"
+
+      # Ship a TestFlight build once the gate above is unblocked.
       - label: "🚀 TestFlight"
         command: ".buildkite/commands/apple/build-and-upload-to-testflight.sh"
         agents:
           queue: mac
         plugins: [$CI_TOOLKIT]
-        depends_on: "apple-build-and-test"
+        depends_on: "apple-release-gate"
         branches: "trunk"
 
   # ---------------------------------------------------------------------------
@@ -60,11 +68,18 @@ steps:
       # testing track (the Android analogue of the tvOS TestFlight step). Needs
       # $CI_TOOLKIT to provision the upload-key secrets (UPLOAD_KEYSTORE_*) and the
       # Play service-account JSON, and to run install_gems for Fastlane.
+      # Gate the Play internal release behind a manual approval on trunk (same
+      # opt-in pattern as the tvOS TestFlight step above).
+      - block: "📦 Release to Play internal?"
+        key: "android-release-gate"
+        depends_on: "android-build-and-test"
+        branches: "trunk"
+
       - label: "📦 Release AAB + APK → Play internal"
         key: "android-release"
         command: ".buildkite/commands/android/build-and-upload-release.sh"
         agents:
           queue: android
         plugins: [$CI_TOOLKIT]
-        depends_on: "android-build-and-test"
+        depends_on: "android-release-gate"
         branches: "trunk"
