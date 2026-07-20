@@ -71,7 +71,12 @@ struct ContentRootView: View {
     let store: WatchProgressStore
     @State private var auth: AuthManager
     @State private var selected: Section = .home
+    /// WordCamp drill-in, shown as a full-screen cover so dismissing it restores
+    /// focus to the card it opened from and it owns the Menu/back button.
+    @State private var openedEvent: ContentEvent?
     @State private var playback: PlaybackRequest?
+    /// Playback started inside the event cover, presented from within it.
+    @State private var eventPlayback: PlaybackRequest?
     @State private var showPairing = false
     @State private var showAccountSheet = false
     @State private var showSettings = false
@@ -89,14 +94,13 @@ struct ContentRootView: View {
         _auth = State(initialValue: auth)
     }
 
-    /// A destination in the top nav (plus the WordCamp drill-in, which no pill
-    /// selects).
+    /// A destination in the top nav. The WordCamp drill-in isn't here — see
+    /// `openedEvent`.
     enum Section: Hashable {
         case home
         case category(NavCategory)
         case search
         case a8c
-        case wordCamp(ContentEvent)
     }
 
     var body: some View {
@@ -112,6 +116,9 @@ struct ContentRootView: View {
         .background(Color.black.ignoresSafeArea())
         .onAppear { applyContentLanguageSelection() }
         .onChange(of: contentLanguageSelectionRaw) { _, _ in applyContentLanguageSelection() }
+        .fullScreenCover(item: $openedEvent) { event in
+            wordCampEventCover(event)
+        }
         .fullScreenCover(isPresented: $showSettings) {
             SettingsScreen(
                 repository: repository,
@@ -152,7 +159,7 @@ struct ContentRootView: View {
                 source: Sources.wordpressTV,
                 store: store,
                 onPlay: play,
-                onOpenEvent: { selected = .wordCamp($0) },
+                onOpenEvent: { openedEvent = $0 },
                 resolveCover: eventCover,
                 onAuthRequired: routeToPairing,
                 onOpenPromo: { showPromo = true }
@@ -175,22 +182,6 @@ struct ContentRootView: View {
                 )
             }
 
-        case .wordCamp(let event):
-            VStack(alignment: .leading, spacing: 8) {
-                Text(event.name)
-                    .font(.title.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 80)
-                    .padding(.top, 20)
-                VideoGrid(
-                    repository: repository,
-                    source: Sources.wordpressTV,
-                    query: .event(event, applyLanguageFilter: false),
-                    onPlay: play,
-                    onAuthRequired: routeToPairing
-                )
-            }
-
         case .search:
             SearchScreen(repository: repository, source: Sources.wordpressTV, onPlay: play)
 
@@ -205,13 +196,39 @@ struct ContentRootView: View {
         }
     }
 
+    /// The WordCamp event's video grid, shown as a full-screen cover.
+    /// `.onExitCommand` dismisses it on Menu/back.
+    @ViewBuilder
+    private func wordCampEventCover(_ event: ContentEvent) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(event.name)
+                .font(.title.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 80)
+                .padding(.top, 20)
+            VideoGrid(
+                repository: repository,
+                source: Sources.wordpressTV,
+                query: .event(event, applyLanguageFilter: false),
+                onPlay: playFromEvent,
+                onAuthRequired: routeToPairing
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.black.ignoresSafeArea())
+        .onExitCommand { openedEvent = nil }
+        .fullScreenCover(item: $eventPlayback) { request in
+            PlayerView(request: request, store: store)
+        }
+    }
+
     /// Stable string for `.id(...)` — associated values make `Section` awkward to
     /// hash into a view identity directly.
     private var sectionKey: String {
         switch selected {
         case .home: "home"
         case .category(let c): "cat-\(c.slug)"
-        case .wordCamp(let e): "event-\(e.slug)"
         case .search: "search"
         case .a8c: "a8c"
         }
@@ -353,22 +370,28 @@ struct ContentRootView: View {
         return await repository.posterURL(source: Sources.wordpressTV, video: video)
     }
 
-    /// Resolve a tapped video to a playable asset, wire its resume point, and
-    /// present the player. Best-effort: if resolution fails the cover just
-    /// doesn't present.
     private func play(_ video: Video, source: ContentSource) {
-        Task {
-            guard let asset = try? await repository.resolvePlayback(source: source, video: video) else { return }
-            let posterURL: URL?
-            if let existingPosterURL = video.posterUrl {
-                posterURL = existingPosterURL
-            } else {
-                posterURL = await repository.posterURL(source: source, video: video)
-            }
-            let playableVideo = video.withPosterURL(posterURL)
-            let resume = store.progress(forGuid: video.videoGuid)?.positionSeconds ?? 0
-            playback = PlaybackRequest(asset: asset, video: playableVideo, resumeAt: resume)
+        Task { playback = await makePlaybackRequest(video, source: source) }
+    }
+
+    /// Play a video tapped inside the WordCamp event cover, presented from it.
+    private func playFromEvent(_ video: Video, source: ContentSource) {
+        Task { eventPlayback = await makePlaybackRequest(video, source: source) }
+    }
+
+    /// Resolve a tapped video to a playable asset and wire its resume point.
+    /// Returns `nil` if resolution fails.
+    private func makePlaybackRequest(_ video: Video, source: ContentSource) async -> PlaybackRequest? {
+        guard let asset = try? await repository.resolvePlayback(source: source, video: video) else { return nil }
+        let posterURL: URL?
+        if let existingPosterURL = video.posterUrl {
+            posterURL = existingPosterURL
+        } else {
+            posterURL = await repository.posterURL(source: source, video: video)
         }
+        let playableVideo = video.withPosterURL(posterURL)
+        let resume = store.progress(forGuid: video.videoGuid)?.positionSeconds ?? 0
+        return PlaybackRequest(asset: asset, video: playableVideo, resumeAt: resume)
     }
 
     // MARK: Actions
