@@ -25,7 +25,8 @@ fastlane/Preview.html
 fastlane/test_output/
 fastlane/README.md
 
-# Fastlane — local secrets. NEVER commit.
+# Fastlane — local secrets.
+# Currently unused, but here to ensure they are never committed.
 fastlane/.env
 fastlane/.env.local
 
