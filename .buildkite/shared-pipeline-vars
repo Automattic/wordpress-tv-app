@@ -7,7 +7,7 @@
 # .xcode-version lives under apple/ in this monorepo (it's an Apple-only concern).
 XCODE_VERSION=$(sed -E 's/^~> ?//' apple/.xcode-version)
 
-export CI_TOOLKIT_PLUGIN_VERSION="6.0.0"
+export CI_TOOLKIT_PLUGIN_VERSION="7.1.1"
 
 export IMAGE_ID="xcode-$XCODE_VERSION"
 export CI_TOOLKIT="automattic/a8c-ci-toolkit#$CI_TOOLKIT_PLUGIN_VERSION"
