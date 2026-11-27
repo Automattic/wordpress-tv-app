@@ -9,6 +9,12 @@ env:
   IMAGE_ID: $IMAGE_ID
 
 steps:
+  - label: "🧪 Validate release lane Ruby"
+    command: ".buildkite/commands/android/validate-release-ruby.sh"
+    agents:
+      queue: android
+    plugins: [$CI_TOOLKIT]
+
   # ---------------------------------------------------------------------------
   # 📺 Apple (tvOS) — apple/
   # Runs on the macOS fleet; uses Fastlane/Xcode under apple/.
